@@ -1,4 +1,4 @@
-# 🎬 FrameLog
+﻿# 🎬 FrameLog
 
 > **The Social Film Diary & Tracker for Cinephiles.** Track films you’ve watched, save those you want to see, craft curated lists, and share your cinematic journey with friends.
 
@@ -10,23 +10,19 @@ FrameLog is an open-source, full-stack web application inspired by Letterboxd �
 
 ### Frontend (`client/`)
 - **Core:** [React 19](https://react.dev/) + [Vite](https://vite.dev/) + [TypeScript](https://www.typescriptlang.org/)
-- **Styling:** [Tailwind CSS v4](https://tailwindcss.com/) with custom cinematic dark palette
-- **Routing:** [React Router v7](https://reactrouter.com/)
+- **Styling:** [Tailwind CSS v3](https://tailwindcss.com/) with cinematic dark palette & custom design tokens
+- **Routing:** [React Router](https://reactrouter.com/)
 - **Icons:** [Lucide React](https://lucide.dev/)
+- **State & Animations:** Context API, [Framer Motion](https://www.framer.com/motion/), [Sonner](https://sonner.emilkowal.ski/)
 - **HTTP Client:** [Axios](https://axios-http.com/) with centralized interceptors
 
 ### Backend (`server/`)
-- **Runtime:** [Node.js](https://nodejs.org/) (LTS v24)
+- **Runtime:** [Node.js](https://nodejs.org/) (v24 LTS)
 - **Framework:** [Express](https://expressjs.com/) + [TypeScript](https://www.typescriptlang.org/)
-- **ORM:** [Prisma](https://www.prisma.io/)
-- **Database:** [PostgreSQL](https://www.postgresql.org/)
-- **Security:** [Helmet](https://helmetjs.github.io/), [CORS](https://github.com/expressjs/cors), [Zod](https://zod.dev/)
-- **Logging:** [Morgan](https://github.com/expressjs/morgan) & structured logger
-- **Runner:** [tsx](https://github.com/privatenumber/tsx) for fast TypeScript execution and watch mode
-
-### Planned Stack & Architecture
-- **Authentication:** Custom JWT (Access Tokens + HTTP-only Refresh Tokens) with `bcryptjs`
-- **Real-time:** [Socket.IO](https://socket.io/) for live movie discussions and direct messaging
+- **Database:** [MongoDB](https://www.mongodb.com/) + [Mongoose](https://mongoosejs.com/)
+- **Authentication:** Custom JWT (Access Token + Refresh Token in HTTP-only cookies)
+- **Password Security:** [bcryptjs](https://github.com/dcodeIO/bcrypt.js)
+- **Execution:** [tsx](https://github.com/privatenumber/tsx) for fast TypeScript watch mode
 
 ---
 
@@ -35,170 +31,188 @@ FrameLog is an open-source, full-stack web application inspired by Letterboxd �
 ```text
 framelog/
 ├── client/                     # Frontend React + Vite application
-│   ├── public/                 # Static public assets
+│   ├── public/                 # Static film poster artwork & assets
 │   ├── src/
-│   │   ├── api/                # API client and service endpoints
-│   │   ├── components/         # Reusable UI components
-│   │   │   ├── common/         # Buttons, cards, badges
-│   │   │   └── layout/         # Navbar, Footer, MainLayout
-│   │   ├── hooks/              # Custom React hooks (e.g. useHealthCheck)
-│   │   ├── lib/                # Shared utilities (Tailwind cn helper)
-│   │   ├── pages/              # Route view pages (Home, NotFound, etc.)
-│   │   ├── store/              # Client application state
-│   │   ├── types/              # TypeScript interfaces (User, Movie, API)
-│   │   ├── App.tsx             # Route declarations
-│   │   ├── index.css           # Tailwind v4 import & custom theme tokens
-│   │   └── main.tsx            # DOM root mounting
-│   ├── .env.example            # Sample client environment variables
+│   │   ├── components/         # UI & Feature components
+│   │   │   ├── app/            # AppShell, TopBar, Sidebar, MobileTabBar
+│   │   │   ├── auth/           # AuthLayout, SocialAuthButtons
+│   │   │   ├── diary/          # DiaryTimeline, DiaryCalendar, LogFilmDialog
+│   │   │   ├── discover/       # SpotlightCard
+│   │   │   ├── feed/           # ActivityCard, HomeRail
+│   │   │   ├── film/           # Poster, RatingHistogram, FilmCredits, FilmReviews
+│   │   │   ├── marketing/      # HeroSection, FeatureShowcase, PosterWall
+│   │   │   ├── profile/        # ProfileHeader, ProfileFilmsGrid, ProfileLists
+│   │   │   └── ui/             # Button, TextField, Tabs, SegmentedControl, etc.
+│   │   ├── contexts/           # LibraryContext (reactive film likes, logs, watchlists)
+│   │   ├── data/               # Curated films, users, and activity data
+│   │   ├── pages/              # Landing, Home, Discover, Diary, Profile, FilmDetail, Login, Register
+│   │   ├── types/              # Frontend TypeScript definitions
+│   │   ├── utils/              # Helper utilities
+│   │   ├── App.tsx             # Application router
+│   │   ├── index.css           # Global typography & Tailwind imports
+│   │   └── main.tsx            # React DOM mounting
+│   ├── .env.example
 │   ├── package.json
-│   ├── tsconfig.app.json
-│   └── vite.config.ts          # Vite config with Tailwind & path aliases
+│   ├── tailwind.config.js
+│   └── vite.config.ts
 │
-├── server/                     # Backend Express + Prisma API
-│   ├── prisma/
-│   │   └── schema.prisma       # Database schema (PostgreSQL & User model)
+├── server/                     # Backend Express + MongoDB API
 │   ├── src/
-│   │   ├── controllers/        # Request controllers (e.g. HealthController)
-│   │   ├── middleware/         # Centralized error handler & 404 handler
-│   │   ├── prisma/             # Singleton Prisma client instance
-│   │   ├── routes/             # Express API routes (/api/health, etc.)
-│   │   ├── services/           # Business logic layer
-│   │   ├── types/              # Server TypeScript interfaces
-│   │   ├── utils/              # Standardized API responses & logger
-│   │   ├── app.ts              # Express application configuration
-│   │   └── server.ts           # Server bootstrap & graceful shutdown
-│   ├── .env.example            # Sample server environment variables
+│   │   ├── config/
+│   │   │   └── db.ts           # Mongoose MongoDB connection & lifecycle
+│   │   ├── models/
+│   │   │   └── User.ts         # User schema & bcrypt methods
+│   │   ├── controllers/
+│   │   │   └── auth.controller.ts  # Register, Login, Logout, Me handlers
+│   │   ├── routes/
+│   │   │   ├── auth.routes.ts  # Auth endpoints
+│   │   │   └── index.ts        # API router aggregation & health check
+│   │   ├── middleware/
+│   │   │   ├── auth.middleware.ts  # JWT Bearer / Cookie authentication
+│   │   │   └── errorHandler.ts # Centralized error & 404 handlers
+│   │   ├── utils/
+│   │   │   ├── ApiError.ts     # Operational API error class
+│   │   │   ├── ApiResponse.ts  # Standardized response wrapper
+│   │   │   ├── asyncHandler.ts # Async route wrapper
+│   │   │   └── jwt.ts          # Access & Refresh token generators
+│   │   ├── app.ts              # Express configuration & CORS
+│   │   └── server.ts           # HTTP server bootstrap & graceful shutdown
+│   ├── .env.example
 │   ├── package.json
-│   └── tsconfig.json           # Node.js TypeScript configuration
+│   └── tsconfig.json
 │
-├── .gitignore                  # Monorepo gitignore
-├── package.json                # Root workspace configuration & scripts
-└── README.md                   # Project documentation
+├── .gitignore
+├── package.json                # Monorepo workspace scripts
+└── README.md
 ```
 
 ---
 
 ## ⚙️ Environment Variables
 
-### 1. Server Environment (`server/.env`)
-Copy `server/.env.example` to `server/.env`:
-```bash
-cp server/.env.example server/.env
+### Server (`server/.env`)
+Create `server/.env` based on `server/.env.example`:
+```env
+PORT=5000
+NODE_ENV=development
+CLIENT_URL=http://localhost:5173
+
+# MongoDB Connection String (Local or MongoDB Atlas)
+MONGODB_URI=mongodb://localhost:27017/framelog
+
+# JWT Authentication
+JWT_ACCESS_SECRET=your_jwt_access_secret_key_here
+JWT_REFRESH_SECRET=your_jwt_refresh_secret_key_here
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
 ```
 
-| Variable | Description | Default / Example |
-| :--- | :--- | :--- |
-| `PORT` | Port the backend server listens on | `5000` |
-| `NODE_ENV` | Application runtime environment | `development` |
-| `CLIENT_URL` | Frontend origin for CORS | `http://localhost:5173` |
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/framelog?schema=public` |
-| `JWT_ACCESS_SECRET` | Secret key for signing access JWTs | `your_access_secret_key` |
-| `JWT_REFRESH_SECRET` | Secret key for signing refresh JWTs | `your_refresh_secret_key` |
-| `JWT_ACCESS_EXPIRES_IN` | Access token lifespan | `15m` |
-| `JWT_REFRESH_EXPIRES_IN` | Refresh token lifespan | `7d` |
-
-### 2. Client Environment (`client/.env`)
-Copy `client/.env.example` to `client/.env`:
-```bash
-cp client/.env.example client/.env
+### Client (`client/.env`)
+Create `client/.env` based on `client/.env.example`:
+```env
+VITE_API_URL=http://localhost:5000/api
 ```
-
-| Variable | Description | Default / Example |
-| :--- | :--- | :--- |
-| `VITE_API_URL` | Base URL for backend API requests | `http://localhost:5000/api` |
 
 ---
 
 ## 🛠️ Quick Start
 
-### 1. Prerequisites
-- **Node.js**: v18.0.0 or later (v24 LTS recommended)
-- **npm**: v9.0.0 or later
-- **PostgreSQL**: Running locally or on a cloud instance
-
-### 2. Installation
-Install all dependencies for root, client, and server in one command:
+### 1. Install Dependencies
 ```bash
 npm install
 ```
 
-### 3. Generate Prisma Client
-Generate the TypeScript Prisma client based on `server/prisma/schema.prisma`:
+### 2. Run the Development Servers
+From the root directory:
 ```bash
-npm run prisma:generate
-```
-
-> **Note on Database Migration:** Once your local PostgreSQL instance is running with the credentials specified in `server/.env`, apply migrations using:
-> ```bash
-> npm run prisma:migrate
-> ```
-
-### 4. Running the Development Servers
-
-#### Option A: Run Both Client & Server Concurrently (Recommended)
-From the project root:
-```bash
+# Run both Backend & Frontend concurrently
 npm run dev
-```
-- **Frontend:** [http://localhost:5173](http://localhost:5173)
-- **Backend API:** [http://localhost:5000](http://localhost:5000)
-- **Health Check:** [http://localhost:5000/api/health](http://localhost:5000/api/health)
 
-#### Option B: Run Standalone Services
-To run the backend only:
-```bash
-npm run dev:server
-```
-
-To run the frontend only:
-```bash
-npm run dev:client
+# Or run separately:
+npm run dev:server    # Starts Express backend on http://localhost:5000
+npm run dev:client    # Starts Vite frontend on http://localhost:5173
 ```
 
 ---
 
-## 📜 Available NPM Scripts
+## 🔐 Authentication API Reference
 
-Run these from the repository root:
-
-| Command | Action |
-| :--- | :--- |
-| `npm run dev` | Runs both backend and frontend concurrently with colored prefixes |
-| `npm run dev:server` | Starts the Express server with `tsx watch` hot reloading |
-| `npm run dev:client` | Starts the Vite React development server |
-| `npm run build` | Compiles both backend (`tsc`) and frontend (`vite build`) |
-| `npm run build:server` | Compiles the backend TypeScript into `server/dist` |
-| `npm run build:client` | Bundles the frontend production assets into `client/dist` |
-| `npm run prisma:generate` | Generates the `@prisma/client` library from schema |
-| `npm run prisma:migrate` | Runs Prisma database migrations in development |
-| `npm run prisma:studio` | Opens Prisma Studio GUI in the browser |
-
----
-
-## 🔍 API Endpoints (Current Base)
-
-### Health Check
-- **`GET /api/health`**
-  - **Response (200 OK):**
-    ```json
-    {
-      "success": true,
-      "message": "FrameLog API is healthy and operational",
-      "data": {
-        "status": "ok",
-        "timestamp": "2026-09-29T07:53:41.260Z",
-        "uptime": 12.4,
-        "environment": "development",
-        "version": "1.0.0"
-      }
+### 1. Register User
+- **Method:** `POST /api/auth/register`
+- **Request Body:**
+  ```json
+  {
+    "name": "Maya Lindqvist",
+    "username": "maya",
+    "email": "maya@example.com",
+    "password": "password123"
+  }
+  ```
+- **Response (201 Created):**
+  ```json
+  {
+    "success": true,
+    "message": "User registered successfully",
+    "data": {
+      "user": {
+        "_id": "670a...",
+        "name": "Maya Lindqvist",
+        "username": "maya",
+        "email": "maya@example.com",
+        "avatar": "",
+        "bio": "",
+        "location": "",
+        "createdAt": "2026-10-13T...",
+        "updatedAt": "2026-10-13T..."
+      },
+      "accessToken": "eyJhbGciOiJIUzI1NiIsIn..."
     }
-    ```
+  }
+  ```
+  *(Also sets HTTP-only `accessToken` and `refreshToken` cookies).*
 
----
+### 2. Login
+- **Method:** `POST /api/auth/login`
+- **Request Body:**
+  ```json
+  {
+    "email": "maya@example.com",
+    "password": "password123"
+  }
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "message": "User logged in successfully",
+    "data": {
+      "user": { ... },
+      "accessToken": "eyJhbGciOiJIUzI1NiIsIn..."
+    }
+  }
+  ```
 
-## 🛣️ Upcoming Milestones
-1. **User Authentication:** Registration, login, password hashing (`bcryptjs`), and JWT rotation.
-2. **Movie Data Pipeline:** Integration with TMDb (The Movie Database) for film metadata, posters, cast & crew.
-3. **Film Logging & Diary:** Personal logbook entries, star ratings, review drafts, and rewatch indicators.
-4. **Custom Lists & Watchlists:** User-curated film collections and ranking systems.
-5. **Real-time Social:** Comment threads and Socket.IO real-time direct messaging.
+### 3. Get Current User (Protected)
+- **Method:** `GET /api/auth/me`
+- **Headers:** `Authorization: Bearer <accessToken>` *(or via HTTP-only cookie)*
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "message": "Current user retrieved successfully",
+    "data": {
+      "user": { ... }
+    }
+  }
+  ```
+
+### 4. Logout
+- **Method:** `POST /api/auth/logout`
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "message": "User logged out successfully",
+    "data": null
+  }
+  ```

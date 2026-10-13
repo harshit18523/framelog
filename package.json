@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "framelog-monorepo",
   "version": "1.0.0",
   "private": true,
@@ -13,10 +13,7 @@
     "dev:client": "npm run dev --workspace=client",
     "build": "npm run build --workspace=server && npm run build --workspace=client",
     "build:server": "npm run build --workspace=server",
-    "build:client": "npm run build --workspace=client",
-    "prisma:generate": "npm run prisma:generate --workspace=server",
-    "prisma:migrate": "npm run prisma:migrate --workspace=server",
-    "prisma:studio": "npm run prisma:studio --workspace=server"
+    "build:client": "npm run build --workspace=client"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

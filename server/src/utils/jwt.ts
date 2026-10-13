@@ -1,56 +1,35 @@
-import jwt from "jsonwebtoken";
-import logger from "./logger.js";
+﻿import jwt, { JwtPayload, SignOptions } from 'jsonwebtoken';
 
-function generateAccessToken(payload: {}) {
-  try {
-    const token = jwt.sign(payload, process.env.JWT_ACCESS_SECRET as string, { expiresIn: "6h" });
-    logger.info("access token generated");
-    return token;
-  } catch (error) {
-    logger.error("access token generation failed");
-    throw error;
-  }
+export interface TokenPayload {
+  id: string;
+  email: string;
+  username: string;
 }
 
-function verifyAccessToken(token: string) {
-  try {
-    return jwt.verify(token, process.env.JWT_ACCESS_SECRET as string);
-  } catch (error) {
-    logger.error("access token verification failed");
-    throw error;
-  }
-}
+export const generateAccessToken = (payload: TokenPayload): string => {
+  const secret = process.env.JWT_ACCESS_SECRET || 'framelog_dev_access_secret_key';
+  const expiresIn = (process.env.JWT_ACCESS_EXPIRES_IN || '15m') as SignOptions['expiresIn'];
+  return jwt.sign(payload, secret, { expiresIn });
+};
 
-function generateRefreshToken(payload: {}) {
-  try {
-    const token = jwt.sign(payload, process.env.JWT_REFRESH_SECRET as string, { expiresIn: "6d" });
-    logger.info("refresh token generated");
-    return token;
-  } catch (error) {
-    logger.error("refresh token generation failed");
-    throw error;
-  }
-}
+export const generateRefreshToken = (payload: { id: string }): string => {
+  const secret = process.env.JWT_REFRESH_SECRET || 'framelog_dev_refresh_secret_key';
+  const expiresIn = (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as SignOptions['expiresIn'];
+  return jwt.sign(payload, secret, { expiresIn });
+};
 
-function verifyRefreshToken(token: string) {
-  try {
-    return jwt.verify(token, process.env.JWT_REFRESH_SECRET as string);
-  } catch (error) {
-    logger.error("refresh token verification failed");
-    throw error;
-  }
-}
-
-function generateTokenPair(payload: {}) {
+export const generateTokenPair = (payload: TokenPayload): { accessToken: string; refreshToken: string } => {
   const accessToken = generateAccessToken(payload);
-  const refreshToken = generateRefreshToken(payload);
+  const refreshToken = generateRefreshToken({ id: payload.id });
   return { accessToken, refreshToken };
-}
+};
 
-export {
-  generateAccessToken,
-  verifyAccessToken,
-  generateRefreshToken,
-  verifyRefreshToken,
-  generateTokenPair
+export const verifyAccessToken = (token: string): TokenPayload & JwtPayload => {
+  const secret = process.env.JWT_ACCESS_SECRET || 'framelog_dev_access_secret_key';
+  return jwt.verify(token, secret) as TokenPayload & JwtPayload;
+};
+
+export const verifyRefreshToken = (token: string): { id: string } & JwtPayload => {
+  const secret = process.env.JWT_REFRESH_SECRET || 'framelog_dev_refresh_secret_key';
+  return jwt.verify(token, secret) as { id: string } & JwtPayload;
 };

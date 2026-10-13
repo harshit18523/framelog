@@ -1,46 +1,41 @@
-import dotenv from "dotenv";
-dotenv.config();
-import { connect } from "mongoose";
-import express from "express";
-import cors from "cors";
-import cookieParser from "cookie-parser";
+﻿import { createApp } from './app';
+import { connectDB, disconnectDB } from './config/db';
 
-import logger from "./utils/logger.js";
-import authRouter from "./routes/authRoute.js";
-import movieRouter from "./routes/movieRoute.js";
-import reviewRouter from "./routes/reviewRoute.js";
-import watchlistRouter from "./routes/watchlistRoute.js";
+const PORT = process.env.PORT || 5000;
+const app = createApp();
 
-try {
-  const conn = await connect(process.env.MONGO_URI as string);
-  logger.info(`MongoDB connected: ${conn.connection.host}`);
-} catch (error: any) {
-  logger.error(`Error: ${error.message}`);
-  process.exit(1);
-}
+const startServer = async () => {
+  // Connect to MongoDB
+  await connectDB();
 
-const app = express();
-const port = process.env.PORT || 3000;
-
-app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true,
-}));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-
-app.use("/api/auth", authRouter);
-app.use("/api/movies", movieRouter);
-app.use("/api/reviews", reviewRouter);
-app.use("/api/watchlist", watchlistRouter);
-
-app.get("/api/health", (req, res) => {
-  res.status(200).json({
-    status: "API is running",
+  const server = app.listen(PORT, () => {
+    console.log(`🎬 FrameLog Server running on http://localhost:${PORT}`);
+    console.log(`🔐 Auth endpoints available at http://localhost:${PORT}/api/auth`);
+    console.log(`🩺 Health check available at http://localhost:${PORT}/api/health`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   });
-});
 
-app.listen(port, () => {
-  logger.info(`Server is running in ${process.env.NODE_ENV} mode on port ${port}`);
+  // Graceful shutdown
+  const shutdown = async (signal: string) => {
+    console.log(`\n[Server] Received ${signal}. Shutting down gracefully...`);
+    server.close(async () => {
+      console.log('[Server] HTTP server closed.');
+      await disconnectDB();
+      process.exit(0);
+    });
+
+    // Force exit after 10s if hanging
+    setTimeout(() => {
+      console.error('[Server] Could not close connections in time, forcefully exiting.');
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+};
+
+startServer().catch((err) => {
+  console.error('[Server] Failed to start:', err);
+  process.exit(1);
 });
