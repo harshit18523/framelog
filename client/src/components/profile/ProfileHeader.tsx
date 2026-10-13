@@ -1,24 +1,39 @@
-import React from 'react';
+﻿import React from 'react';
 import { MapPinIcon, ShareIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { currentUser, profileStats } from '../../data/users';
+import { useAuth } from '../../contexts/AuthContext';
+import { useLibrary } from '../../contexts/LibraryContext';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 
 export function ProfileHeader() {
+  const { user } = useAuth();
+  const { entries } = useLibrary();
+
+  const activeUser = user || currentUser;
+  const isDemoUser = activeUser.handle === 'maya';
+  const filmsCount = isDemoUser ? profileStats.filmsWatched + Math.max(0, entries.length - 8) : entries.length;
+
   return (
     <header className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-end">
-        <Avatar user={currentUser} size="xl" className="ring-2 ring-white/10" />
+        <Avatar user={activeUser} size="xl" className="ring-2 ring-white/10" />
         <div className="min-w-0">
-          <h1 className="text-[34px] font-semibold leading-tight tracking-display sm:text-[44px]">{currentUser.name}</h1>
+          <h1 className="text-[34px] font-semibold leading-tight tracking-display sm:text-[44px]">
+            {activeUser.name}
+          </h1>
           <p className="mt-1 flex items-center gap-3 text-sm text-fg-subtle">
-            @{currentUser.handle}
-            <span className="inline-flex items-center gap-1">
-              <MapPinIcon size={13} /> {currentUser.location}
-            </span>
+            @{activeUser.handle}
+            {activeUser.location && (
+              <span className="inline-flex items-center gap-1">
+                <MapPinIcon size={13} /> {activeUser.location}
+              </span>
+            )}
           </p>
-          <p className="mt-4 max-w-[52ch] text-[15px] leading-relaxed text-fg-muted">{currentUser.bio}</p>
+          <p className="mt-4 max-w-[52ch] text-[15px] leading-relaxed text-fg-muted">
+            {activeUser.bio || 'Logging cinema, writing reviews, and curating film journeys on FrameLog.'}
+          </p>
           <div className="mt-5 flex items-center gap-2">
             <Button variant="secondary" size="sm">
               Edit profile
@@ -28,8 +43,11 @@ export function ProfileHeader() {
               size="sm"
               aria-label="Share profile"
               className="w-8 px-0"
-              onClick={() => toast('Profile link copied')}>
-              
+              onClick={() => {
+                navigator.clipboard?.writeText(window.location.href);
+                toast('Profile link copied to clipboard');
+              }}
+            >
               <ShareIcon size={15} />
             </Button>
           </div>
@@ -38,24 +56,34 @@ export function ProfileHeader() {
 
       <dl className="flex items-end gap-8 lg:gap-10">
         <div>
-          <dt className="text-xs text-fg-subtle">Films</dt>
+          <dt className="text-xs text-fg-subtle">Films Logged</dt>
           <dd className="mt-1 text-[44px] font-semibold leading-none tabular-nums tracking-display">
-            {profileStats.filmsWatched.toLocaleString()}
+            {filmsCount.toLocaleString()}
           </dd>
         </div>
         <div className="mb-1 h-12 w-px bg-line" aria-hidden />
         {[
-        { label: 'This year', value: profileStats.thisYear },
-        { label: 'Lists', value: profileStats.lists },
-        { label: 'Avg rating', value: profileStats.averageRating.toFixed(1) },
-        { label: 'Followers', value: profileStats.followers.toLocaleString() }].
-        map((stat) =>
-        <div key={stat.label} className="hidden sm:block">
+          { label: 'This year', value: isDemoUser ? profileStats.thisYear : entries.length },
+          { label: 'Lists', value: isDemoUser ? profileStats.lists : 0 },
+          {
+            label: 'Avg rating',
+            value: entries.filter((e) => e.rating).length
+              ? (
+                  entries.reduce((acc, cur) => acc + (cur.rating || 0), 0) /
+                  entries.filter((e) => e.rating).length
+                ).toFixed(1)
+              : '—',
+          },
+          { label: 'Followers', value: isDemoUser ? profileStats.followers.toLocaleString() : '0' },
+        ].map((stat) => (
+          <div key={stat.label} className="hidden sm:block">
             <dt className="text-xs text-fg-subtle">{stat.label}</dt>
             <dd className="mt-1 text-xl font-semibold tabular-nums">{stat.value}</dd>
           </div>
-        )}
+        ))}
       </dl>
-    </header>);
-
+    </header>
+  );
 }
+
+export default ProfileHeader;

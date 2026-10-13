@@ -1,4 +1,4 @@
-export type Credit = {
+﻿export type Credit = {
   name: string;
   role: string;
 };
@@ -32,4 +32,5 @@ export type DiaryEntry = {
   review?: string;
   liked: boolean;
   rewatch: boolean;
+  film?: Film;
 };

@@ -1,6 +1,10 @@
 ﻿import { Router, Request, Response } from 'express';
 import mongoose from 'mongoose';
 import authRoutes from './auth.routes';
+import filmRoutes from './film.routes';
+import diaryRoutes from './diary.routes';
+import watchlistRoutes from './watchlist.routes';
+import likesRoutes from './likes.routes';
 import { ApiResponse } from '../utils/ApiResponse';
 
 const router = Router();
@@ -23,5 +27,13 @@ router.get('/health', (_req: Request, res: Response) => {
 
 // Auth endpoints
 router.use('/auth', authRoutes);
+
+// Films & TMDB endpoints
+router.use('/films', filmRoutes);
+
+// User library endpoints (Diary, Watchlist, Likes)
+router.use('/diary', diaryRoutes);
+router.use('/watchlist', watchlistRoutes);
+router.use('/likes', likesRoutes);
 
 export default router;

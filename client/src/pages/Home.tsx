@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { PlusIcon } from 'lucide-react';
 import { ActivityCard } from '../components/feed/ActivityCard';
 import { HomeRail } from '../components/feed/HomeRail';
 import { Avatar } from '../components/ui/Avatar';
 import { Tabs } from '../components/ui/Tabs';
 import { useLibrary } from '../contexts/LibraryContext';
+import { useAuth } from '../contexts/AuthContext';
 import { activity } from '../data/activity';
 import { currentUser } from '../data/users';
 import { useScreenInit } from '../useScreenInit.js';
@@ -13,17 +14,28 @@ type FeedFilter = 'all' | 'reviews';
 
 export function Home() {
   const { openLog } = useLibrary();
-  const screenInit = useScreenInit() as {feedFilter?: FeedFilter;};
+  const { user } = useAuth();
+  const screenInit = useScreenInit() as { feedFilter?: FeedFilter };
   const [filter, setFilter] = useState<FeedFilter>(screenInit.feedFilter ?? 'all');
   const items = filter === 'all' ? activity : activity.filter((a) => a.kind === 'review');
+
+  const activeUser = user || currentUser;
+  const firstName = activeUser.name.split(' ')[0] || 'Cinephile';
+
+  // Format today's date in local readable format
+  const todayDateString = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date());
 
   return (
     <div className="px-4 py-8 sm:px-6 lg:px-12 lg:py-12">
       <div className="grid gap-16 xl:grid-cols-[minmax(0,1fr)_300px]">
         <section aria-labelledby="home-title" className="min-w-0 max-w-[720px]">
-          <p className="text-sm text-fg-subtle">Tuesday, September 29</p>
+          <p className="text-sm text-fg-subtle">{todayDateString}</p>
           <h1 id="home-title" className="mt-1.5 text-[32px] font-semibold leading-tight tracking-display sm:text-[42px]">
-            Good evening, Maya
+            Good evening, {firstName}
           </h1>
 
           <button
@@ -31,7 +43,7 @@ export function Home() {
             onClick={() => openLog()}
             className="group mt-8 flex w-full items-center gap-4 rounded-2xl bg-surface p-3 pl-3.5 text-left ring-1 ring-inset ring-line transition-[background-color,box-shadow] duration-200 ease-cinema hover:bg-surface-raised hover:ring-line-strong focus-visible:outline-none focus-visible:ring-gold/50"
           >
-            <Avatar user={currentUser} size="md" />
+            <Avatar user={activeUser} size="md" />
             <span className="flex-1 text-[15px] text-fg-subtle transition-colors group-hover:text-fg-muted">
               What did you watch tonight?
             </span>
@@ -71,3 +83,5 @@ export function Home() {
     </div>
   );
 }
+
+export default Home;

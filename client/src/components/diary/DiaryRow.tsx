@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { HeartIcon, RepeatIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { DiaryEntry } from '../../types/film';
@@ -12,7 +12,7 @@ type DiaryRowProps = {
 };
 
 export function DiaryRow({ entry }: DiaryRowProps) {
-  const film = getFilm(entry.filmId);
+  const film = (entry.film as any) || getFilm(entry.filmId);
   if (!film) return null;
 
   return (
@@ -33,27 +33,29 @@ export function DiaryRow({ entry }: DiaryRowProps) {
           </Link>
           <span className="ml-2 text-sm text-fg-subtle">{film.year}</span>
         </p>
-        {entry.review ?
-        <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-fg-subtle">{entry.review}</p> :
-
-        <p className="mt-1 text-sm text-fg-faint">Directed by {film.director}</p>
-        }
+        {entry.review ? (
+          <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-fg-subtle">{entry.review}</p>
+        ) : (
+          <p className="mt-1 text-sm text-fg-faint">Directed by {film.director}</p>
+        )}
         <div className="mt-2 sm:hidden">
           {entry.rating != null && <StarRating value={entry.rating} size={12} />}
         </div>
       </div>
 
       <div className="hidden items-center gap-4 sm:flex">
-        {entry.rating != null ?
-        <StarRating value={entry.rating} size={14} /> :
-
-        <span className="w-[78px] text-right text-xs text-fg-faint">Not rated</span>
-        }
+        {entry.rating != null ? (
+          <StarRating value={entry.rating} size={14} />
+        ) : (
+          <span className="w-[78px] text-right text-xs text-fg-faint">Not rated</span>
+        )}
         <span className="flex w-10 items-center justify-end gap-2 text-fg-subtle">
           {entry.liked && <HeartIcon size={14} fill="currentColor" className="text-gold" aria-label="Liked" />}
           {entry.rewatch && <RepeatIcon size={14} aria-label="Rewatch" />}
         </span>
       </div>
-    </li>);
-
+    </li>
+  );
 }
+
+export default DiaryRow;

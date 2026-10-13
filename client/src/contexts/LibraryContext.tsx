@@ -1,8 +1,21 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { initialDiary, initialLiked, initialWatchlist } from '../data/library';
+﻿import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { DiaryEntry } from '../types/film';
 import { TODAY_ISO } from '../utils/dates';
+import { cacheFilm, getFilm } from '../utils/films';
 import { useScreenInit } from '../useScreenInit.js';
+import { useAuth } from './AuthContext';
+import {
+  getDiaryEntriesApi,
+  createDiaryEntryApi,
+  updateDiaryEntryApi,
+  deleteDiaryEntryApi,
+  getWatchlistApi,
+  addToWatchlistApi,
+  removeFromWatchlistApi,
+  getLikesApi,
+  likeFilmApi,
+  unlikeFilmApi,
+} from '../api/library.api';
 
 type LogDialogState = {
   open: boolean;
@@ -22,59 +35,215 @@ type LibraryContextValue = {
   toggleWatchlist: (filmId: string) => void;
   toggleLiked: (filmId: string) => void;
   setRating: (filmId: string, rating: number | undefined) => void;
-  openLog: (options?: {filmId?: string;date?: string;}) => void;
+  openLog: (options?: { filmId?: string; date?: string }) => void;
   closeLog: () => void;
 };
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
 
-export function LibraryProvider({ children }: {children: React.ReactNode;}) {
-  const [entries, setEntries] = useState<DiaryEntry[]>(initialDiary);
-  const [watchlist, setWatchlist] = useState<string[]>(initialWatchlist);
-  const [liked, setLiked] = useState<string[]>(initialLiked);
-  const screenInit = useScreenInit() as {logOpen?: boolean;logFilmId?: string;};
+export function LibraryProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const screenInit = useScreenInit() as { logOpen?: boolean; logFilmId?: string };
+
+  const [entries, setEntries] = useState<DiaryEntry[]>([]);
+  const [watchlist, setWatchlist] = useState<string[]>([]);
+  const [liked, setLiked] = useState<string[]>([]);
+
   const [logDialog, setLogDialog] = useState<LogDialogState>({
     open: Boolean(screenInit.logOpen),
-    filmId: screenInit.logFilmId
+    filmId: screenInit.logFilmId,
   });
 
-  const addEntry = useCallback((entry: Omit<DiaryEntry, 'id'>) => {
-    setEntries((prev) =>
-    [{ ...entry, id: `d-${Date.now()}` }, ...prev].sort((a, b) => b.date.localeCompare(a.date))
-    );
-    setWatchlist((prev) => prev.filter((id) => id !== entry.filmId));
-    if (entry.liked) setLiked((prev) => prev.includes(entry.filmId) ? prev : [...prev, entry.filmId]);
-  }, []);
+  // Fetch library data from MongoDB when user logs in
+  useEffect(() => {
+    if (!user) {
+      setEntries([]);
+      setWatchlist([]);
+      setLiked([]);
+      return;
+    }
 
-  const toggleWatched = useCallback((filmId: string) => {
-    setEntries((prev) => {
-      if (prev.some((e) => e.filmId === filmId)) return prev.filter((e) => e.filmId !== filmId);
-      return [{ id: `d-${Date.now()}`, filmId, date: TODAY_ISO, liked: false, rewatch: false }, ...prev];
-    });
-    setWatchlist((prev) => prev.filter((id) => id !== filmId));
-  }, []);
+    let isMounted = true;
 
-  const toggleWatchlist = useCallback((filmId: string) => {
-    setWatchlist((prev) => prev.includes(filmId) ? prev.filter((id) => id !== filmId) : [...prev, filmId]);
-  }, []);
+    const fetchLibrary = async () => {
+      try {
+        const [diaryEntries, watchlistData, likesData] = await Promise.all([
+          getDiaryEntriesApi().catch((err) => {
+            console.error('[Library] Failed to load diary:', err);
+            return [] as DiaryEntry[];
+          }),
+          getWatchlistApi().catch((err) => {
+            console.error('[Library] Failed to load watchlist:', err);
+            return { items: [], filmIds: [] };
+          }),
+          getLikesApi().catch((err) => {
+            console.error('[Library] Failed to load likes:', err);
+            return { filmIds: [] };
+          }),
+        ]);
 
-  const toggleLiked = useCallback((filmId: string) => {
-    setLiked((prev) => prev.includes(filmId) ? prev.filter((id) => id !== filmId) : [...prev, filmId]);
-  }, []);
+        if (!isMounted) return;
 
-  const setRating = useCallback((filmId: string, rating: number | undefined) => {
-    setEntries((prev) => {
-      const index = prev.findIndex((e) => e.filmId === filmId);
-      if (index === -1) {
-        return [{ id: `d-${Date.now()}`, filmId, date: TODAY_ISO, rating, liked: false, rewatch: false }, ...prev];
+        // Cache any embedded film data from backend
+        diaryEntries.forEach((entry) => {
+          if (entry.film) cacheFilm(entry.film);
+        });
+        watchlistData.items?.forEach((item) => {
+          if (item.film) cacheFilm(item.film as any);
+        });
+
+        setEntries(diaryEntries);
+        setWatchlist(watchlistData.filmIds || []);
+        setLiked(likesData.filmIds || []);
+      } catch (err) {
+        console.error('[Library] Failed to fetch user library:', err);
       }
-      const next = [...prev];
-      next[index] = { ...next[index], rating };
-      return next;
-    });
-  }, []);
+    };
 
-  const openLog = useCallback((options?: {filmId?: string;date?: string;}) => {
+    fetchLibrary();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  const addEntry = useCallback(
+    async (entryData: Omit<DiaryEntry, 'id'>) => {
+      const film = getFilm(entryData.filmId);
+      // Optimistic temporary entry
+      const tempId = `temp-${Date.now()}`;
+      const optimisticEntry: DiaryEntry = { ...entryData, id: tempId, film };
+
+      setEntries((prev) => [optimisticEntry, ...prev.filter((e) => e.filmId !== entryData.filmId)]);
+      setWatchlist((prev) => prev.filter((id) => id !== entryData.filmId));
+      if (entryData.liked) {
+        setLiked((prev) => (prev.includes(entryData.filmId) ? prev : [...prev, entryData.filmId]));
+      }
+
+      try {
+        const created = await createDiaryEntryApi({
+          ...entryData,
+          film,
+        });
+
+        setEntries((prev) =>
+          prev.map((e) => (e.id === tempId ? { ...created, film: created.film || film } : e))
+        );
+      } catch (err) {
+        console.error('[Library] Failed to create diary entry on server:', err);
+      }
+    },
+    []
+  );
+
+  const toggleWatched = useCallback(
+    async (filmId: string) => {
+      const existing = entries.find((e) => e.filmId === filmId);
+
+      if (existing) {
+        // Remove watched entry
+        setEntries((prev) => prev.filter((e) => e.id !== existing.id));
+        try {
+          await deleteDiaryEntryApi(existing.id);
+        } catch (err) {
+          console.error('[Library] Failed to delete diary entry:', err);
+          // Rollback
+          setEntries((prev) => [existing, ...prev]);
+        }
+      } else {
+        // Add new watched entry
+        addEntry({
+          filmId,
+          date: TODAY_ISO,
+          liked: false,
+          rewatch: false,
+        });
+      }
+    },
+    [entries, addEntry]
+  );
+
+  const toggleWatchlist = useCallback(
+    async (filmId: string) => {
+      const inWatchlist = watchlist.includes(filmId);
+      const film = getFilm(filmId);
+
+      if (inWatchlist) {
+        setWatchlist((prev) => prev.filter((id) => id !== filmId));
+        try {
+          await removeFromWatchlistApi(filmId);
+        } catch (err) {
+          console.error('[Library] Failed to remove from watchlist:', err);
+          setWatchlist((prev) => [...prev, filmId]);
+        }
+      } else {
+        setWatchlist((prev) => [...prev, filmId]);
+        try {
+          await addToWatchlistApi(filmId, film);
+        } catch (err) {
+          console.error('[Library] Failed to add to watchlist:', err);
+          setWatchlist((prev) => prev.filter((id) => id !== filmId));
+        }
+      }
+    },
+    [watchlist]
+  );
+
+  const toggleLiked = useCallback(
+    async (filmId: string) => {
+      const isLiked = liked.includes(filmId);
+
+      if (isLiked) {
+        setLiked((prev) => prev.filter((id) => id !== filmId));
+        try {
+          await unlikeFilmApi(filmId);
+        } catch (err) {
+          console.error('[Library] Failed to unlike film:', err);
+          setLiked((prev) => [...prev, filmId]);
+        }
+      } else {
+        setLiked((prev) => [...prev, filmId]);
+        try {
+          await likeFilmApi(filmId);
+        } catch (err) {
+          console.error('[Library] Failed to like film:', err);
+          setLiked((prev) => prev.filter((id) => id !== filmId));
+        }
+      }
+    },
+    [liked]
+  );
+
+  const setRating = useCallback(
+    async (filmId: string, rating: number | undefined) => {
+      const existing = entries.find((e) => e.filmId === filmId);
+
+      if (existing) {
+        setEntries((prev) =>
+          prev.map((e) => (e.id === existing.id ? { ...e, rating } : e))
+        );
+        try {
+          await updateDiaryEntryApi(existing.id, { rating });
+        } catch (err) {
+          console.error('[Library] Failed to update rating on server:', err);
+          setEntries((prev) =>
+            prev.map((e) => (e.id === existing.id ? existing : e))
+          );
+        }
+      } else {
+        addEntry({
+          filmId,
+          date: TODAY_ISO,
+          rating,
+          liked: false,
+          rewatch: false,
+        });
+      }
+    },
+    [entries, addEntry]
+  );
+
+  const openLog = useCallback((options?: { filmId?: string; date?: string }) => {
     setLogDialog({ open: true, filmId: options?.filmId, date: options?.date });
   }, []);
 
@@ -94,9 +263,21 @@ export function LibraryProvider({ children }: {children: React.ReactNode;}) {
       toggleLiked,
       setRating,
       openLog,
-      closeLog
+      closeLog,
     }),
-    [entries, watchlist, liked, logDialog, addEntry, toggleWatched, toggleWatchlist, toggleLiked, setRating, openLog, closeLog]
+    [
+      entries,
+      watchlist,
+      liked,
+      logDialog,
+      addEntry,
+      toggleWatched,
+      toggleWatchlist,
+      toggleLiked,
+      setRating,
+      openLog,
+      closeLog,
+    ]
   );
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;
@@ -107,3 +288,5 @@ export function useLibrary(): LibraryContextValue {
   if (!context) throw new Error('useLibrary must be used inside LibraryProvider');
   return context;
 }
+
+export default LibraryContext;

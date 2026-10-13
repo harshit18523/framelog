@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import type { Film } from '../../types/film';
 import { Logo } from '../brand/Logo';
 import { StarRating } from '../ui/StarRating';
@@ -7,14 +7,27 @@ import { SocialAuthButtons } from './SocialAuthButtons';
 type AuthLayoutProps = {
   title: string;
   subtitle: string;
-  film: Film;
-  quote: string;
-  quoteAuthor: string;
+  film?: Film;
+  quote?: string;
+  quoteAuthor?: string;
   footer: React.ReactNode;
   children: React.ReactNode;
 };
 
-export function AuthLayout({ title, subtitle, film, quote, quoteAuthor, footer, children }: AuthLayoutProps) {
+const DEFAULT_BACKDROP =
+  'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1600&q=80';
+
+export function AuthLayout({
+  title,
+  subtitle,
+  film,
+  quote = 'Every frame is a confession. Every film is a lifetime.',
+  quoteAuthor = 'FrameLog',
+  footer,
+  children,
+}: AuthLayoutProps) {
+  const backdropUrl = film?.backdrop || film?.poster || DEFAULT_BACKDROP;
+
   return (
     <div className="grid min-h-screen w-full bg-canvas text-fg lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <div className="flex flex-col px-6 py-8 sm:px-12">
@@ -41,20 +54,22 @@ export function AuthLayout({ title, subtitle, film, quote, quoteAuthor, footer, 
 
       <div className="relative hidden p-3 lg:block">
         <div className="relative h-full overflow-hidden rounded-[28px] ring-1 ring-inset ring-line">
-          <img src={film.backdrop ?? film.poster} alt="" className="absolute inset-0 h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-black/35" aria-hidden />
-          <figure className="absolute inset-x-8 bottom-8 max-w-md rounded-2xl bg-black/45 p-6 ring-1 ring-inset ring-white/10 backdrop-blur-xl">
+          <img src={backdropUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-black/40" aria-hidden />
+          <figure className="absolute inset-x-8 bottom-8 max-w-md rounded-2xl bg-black/50 p-6 ring-1 ring-inset ring-white/10 backdrop-blur-xl">
             <blockquote className="text-lg font-medium leading-relaxed text-fg">“{quote}”</blockquote>
             <figcaption className="mt-5 flex items-center justify-between gap-4 border-t border-white/10 pt-4">
               <span className="text-sm text-white/75">{quoteAuthor}</span>
               <span className="flex items-center gap-2 text-sm text-white/75">
-                <span className="truncate">{film.title}</span>
+                <span className="truncate">{film?.title || 'FrameLog Cinema'}</span>
                 <StarRating value={5} size={11} />
               </span>
             </figcaption>
           </figure>
         </div>
       </div>
-    </div>);
-
+    </div>
+  );
 }
+
+export default AuthLayout;

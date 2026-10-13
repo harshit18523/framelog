@@ -1,13 +1,13 @@
-import React from 'react';
+﻿import React from 'react';
 import { FeatureShowcase } from '../components/marketing/FeatureShowcase';
 import { HeroSection } from '../components/marketing/HeroSection';
 import { MarketingFooter } from '../components/marketing/MarketingFooter';
 import { MarketingNav } from '../components/marketing/MarketingNav';
 import { ButtonLink } from '../components/ui/Button';
-import { getFilm } from '../utils/films';
 
 export function Landing() {
-  const closing = getFilm('the-long-field');
+  const backdropUrl =
+    'https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?auto=format&fit=crop&w=1600&q=80';
 
   return (
     <div className="min-h-screen w-full bg-canvas text-fg">
@@ -18,7 +18,7 @@ export function Landing() {
 
         <section id="join" aria-labelledby="join-title" className="scroll-mt-20 px-4 pb-24 sm:px-6">
           <div className="relative mx-auto max-w-[1200px] overflow-hidden rounded-3xl ring-1 ring-inset ring-line">
-            {closing?.backdrop && <img src={closing.backdrop} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+            <img src={backdropUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
             <div className="absolute inset-0 bg-black/60" aria-hidden />
             <div className="relative flex min-h-[460px] flex-col items-center justify-center px-6 py-20 text-center">
               <h2 id="join-title" className="max-w-2xl text-[40px] font-semibold leading-[1.02] tracking-display sm:text-[64px]">
@@ -40,6 +40,8 @@ export function Landing() {
         </section>
       </main>
       <MarketingFooter />
-    </div>);
-
+    </div>
+  );
 }
+
+export default Landing;

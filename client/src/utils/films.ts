@@ -1,10 +1,29 @@
-import { films } from '../data/films';
-import { currentUser, users } from '../data/users';
+﻿import { currentUser, users } from '../data/users';
 import type { Film } from '../types/film';
 import type { User } from '../types/social';
 
+// In-memory runtime cache for real TMDB films loaded by the app
+const filmsCache = new Map<string, Film>();
+
+export function cacheFilm(film: Film | undefined) {
+  if (film && film.id) {
+    filmsCache.set(String(film.id), film);
+  }
+}
+
+export function cacheFilms(filmsList: Film[] | undefined) {
+  if (Array.isArray(filmsList)) {
+    filmsList.forEach(cacheFilm);
+  }
+}
+
+export function getAllCachedFilms(): Film[] {
+  return Array.from(filmsCache.values());
+}
+
 export function getFilm(id: string | undefined): Film | undefined {
-  return films.find((film) => film.id === id);
+  if (!id) return undefined;
+  return filmsCache.get(String(id));
 }
 
 export function getFilms(ids: string[]): Film[] {
@@ -23,14 +42,15 @@ export function formatRuntime(minutes: number): string {
 
 export function searchFilms(query: string, genre?: string | null): Film[] {
   const q = query.trim().toLowerCase();
-  return films.filter((film) => {
-    const matchesGenre = genre ? film.genres.includes(genre) : true;
-    const matchesQuery = q ?
-    [film.title, film.director, ...film.genres, ...film.cast.map((c) => c.name)].
-    join(' ').
-    toLowerCase().
-    includes(q) :
-    true;
+  const allFilms = getAllCachedFilms();
+  return allFilms.filter((film) => {
+    const matchesGenre = genre ? film.genres.some((g) => g.toLowerCase() === genre.toLowerCase()) : true;
+    const matchesQuery = q
+      ? [film.title, film.director, ...film.genres, ...film.cast.map((c) => c.name)]
+          .join(' ')
+          .toLowerCase()
+          .includes(q)
+      : true;
     return matchesGenre && matchesQuery;
   });
 }

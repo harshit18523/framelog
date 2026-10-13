@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link } from 'react-router-dom';
 import { useLibrary } from '../../contexts/LibraryContext';
 import { formatDay } from '../../utils/dates';
@@ -17,7 +17,7 @@ export function ProfileReviews() {
   return (
     <ul className="max-w-3xl divide-y divide-line">
       {reviewed.map((entry) => {
-        const film = getFilm(entry.filmId);
+        const film = (entry.film as any) || getFilm(entry.filmId);
         if (!film) return null;
         return (
           <li key={entry.id} className="flex gap-6 py-8 first:pt-0">
@@ -35,9 +35,11 @@ export function ProfileReviews() {
               </div>
               <p className="mt-3 text-[15px] leading-[1.7] text-fg-muted">{entry.review}</p>
             </article>
-          </li>);
-
+          </li>
+        );
       })}
-    </ul>);
-
+    </ul>
+  );
 }
+
+export default ProfileReviews;
