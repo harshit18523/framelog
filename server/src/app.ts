@@ -1,11 +1,13 @@
-﻿import express, { Application } from 'express';
+import express, { Application } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import path from 'path';
 import dotenv from 'dotenv';
 import apiRouter from './routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 
 // Load environment variables
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config();
 
 export const createApp = (): Application => {
