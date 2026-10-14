@@ -1,9 +1,9 @@
-﻿import { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { User } from '../models/User';
 import { ApiError } from '../utils/ApiError';
 import { ApiResponse } from '../utils/ApiResponse';
 import { asyncHandler } from '../utils/asyncHandler';
-import { generateTokenPair } from '../utils/jwt';
+import { generateTokenPair, verifyRefreshToken } from '../utils/jwt';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -177,4 +177,55 @@ export const getMe = asyncHandler(async (req: AuthRequest, res: Response) => {
       'Current user retrieved successfully'
     )
   );
+});
+
+export const refresh = asyncHandler(async (req: Request, res: Response) => {
+  const token = req.cookies?.refreshToken || req.body?.refreshToken;
+
+  if (!token) {
+    throw new ApiError(401, 'Refresh token is required');
+  }
+
+  try {
+    const decoded = verifyRefreshToken(token);
+    const user = await User.findById(decoded.id).select('+refreshToken');
+
+    if (!user || user.refreshToken !== token) {
+      throw new ApiError(401, 'Invalid or expired refresh token');
+    }
+
+    // Generate new token pair
+    const { accessToken, refreshToken: newRefreshToken } = generateTokenPair({
+      id: user._id.toString(),
+      email: user.email,
+      username: user.username,
+    });
+
+    user.refreshToken = newRefreshToken;
+    await user.save();
+
+    res.cookie('accessToken', accessToken, {
+      ...cookieOptions,
+      maxAge: ACCESS_TOKEN_MAX_AGE,
+    });
+
+    res.cookie('refreshToken', newRefreshToken, {
+      ...cookieOptions,
+      maxAge: REFRESH_TOKEN_MAX_AGE,
+    });
+
+    res.status(200).json(
+      new ApiResponse(
+        {
+          accessToken,
+          refreshToken: newRefreshToken,
+          user,
+        },
+        'Token refreshed successfully'
+      )
+    );
+  } catch (err: any) {
+    if (err instanceof ApiError) throw err;
+    throw new ApiError(401, 'Invalid or expired refresh token');
+  }
 });

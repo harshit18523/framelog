@@ -1,11 +1,20 @@
-﻿import React from 'react';
+import React from 'react';
+import { Navigate } from 'react-router-dom';
 import { FeatureShowcase } from '../components/marketing/FeatureShowcase';
 import { HeroSection } from '../components/marketing/HeroSection';
 import { MarketingFooter } from '../components/marketing/MarketingFooter';
 import { MarketingNav } from '../components/marketing/MarketingNav';
 import { ButtonLink } from '../components/ui/Button';
+import { useAuth } from '../contexts/AuthContext';
 
 export function Landing() {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) return null;
+  if (isAuthenticated) {
+    return <Navigate to="/app" replace />;
+  }
+
   const backdropUrl =
     'https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?auto=format&fit=crop&w=1600&q=80';
 

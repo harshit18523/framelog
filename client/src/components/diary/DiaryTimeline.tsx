@@ -11,12 +11,13 @@ type DiaryTimelineProps = {
 export function DiaryTimeline({ entries, compact }: DiaryTimelineProps) {
   const groups = useMemo(() => {
     const map = new Map<string, DiaryEntry[]>();
-    [...entries].
-    sort((a, b) => b.date.localeCompare(a.date)).
-    forEach((entry) => {
-      const key = entry.date.slice(0, 7);
-      map.set(key, [...(map.get(key) ?? []), entry]);
-    });
+    [...entries]
+      .filter((entry) => Boolean(entry && entry.date))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      .forEach((entry) => {
+        const key = entry.date.slice(0, 7);
+        map.set(key, [...(map.get(key) ?? []), entry]);
+      });
     return [...map.entries()];
   }, [entries]);
 

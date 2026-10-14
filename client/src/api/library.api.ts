@@ -1,4 +1,4 @@
-﻿import apiClient from './client';
+import apiClient from './client';
 import type { DiaryEntry, Film } from '../types/film';
 
 export interface ApiResponse<T = unknown> {
@@ -9,6 +9,11 @@ export interface ApiResponse<T = unknown> {
 
 export interface WatchlistResponse {
   items: Array<{ id: string; filmId: string; film?: Partial<Film>; addedAt: string }>;
+  filmIds: string[];
+}
+
+export interface WatchedResponse {
+  items: Array<{ id: string; filmId: string; film?: Partial<Film>; createdAt: string }>;
   filmIds: string[];
 }
 
@@ -80,3 +85,20 @@ export const likeFilmApi = async (filmId: string): Promise<void> => {
 export const unlikeFilmApi = async (filmId: string): Promise<void> => {
   await apiClient.delete<ApiResponse<null>>(`/likes/${filmId}`);
 };
+
+// Watched API endpoints
+export const getWatchedApi = async (userId?: string): Promise<WatchedResponse> => {
+  const res = await apiClient.get<ApiResponse<WatchedResponse>>('/watched', {
+    params: userId ? { userId } : undefined,
+  });
+  return res.data.data;
+};
+
+export const addWatchedApi = async (filmId: string, film?: Partial<Film>): Promise<void> => {
+  await apiClient.post<ApiResponse<unknown>>('/watched', { filmId, film });
+};
+
+export const removeWatchedApi = async (filmId: string): Promise<void> => {
+  await apiClient.delete<ApiResponse<null>>(`/watched/${filmId}`);
+};
+

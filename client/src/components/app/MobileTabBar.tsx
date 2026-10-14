@@ -10,7 +10,7 @@ export function MobileTabBar() {
       aria-label="Primary"
       className="fixed inset-x-3 bottom-3 z-40 rounded-2xl bg-surface-raised/80 shadow-elevated ring-1 ring-line-strong backdrop-blur-2xl lg:hidden">
       
-      <ul className="grid grid-cols-5">
+      <ul className="grid grid-cols-6">
         {appNavigation.map((item) => {
           const active = isNavActive(item.id, pathname, search);
           const Icon = item.icon;

@@ -12,8 +12,8 @@ const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export function DiaryCalendar() {
   const { entries, openLog } = useLibrary();
-  const [month, setMonth] = useState(() => startOfMonth(parseISO(TODAY_ISO)));
-  const isCurrentMonth = format(month, 'yyyy-MM') === TODAY_ISO.slice(0, 7);
+  const [month, setMonth] = useState(() => startOfMonth(new Date()));
+  const isCurrentMonth = format(month, 'yyyy-MM') === format(new Date(), 'yyyy-MM');
 
   const byDate = useMemo(() => {
     const map = new Map<string, DiaryEntry[]>();

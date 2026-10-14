@@ -1,10 +1,11 @@
-﻿import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { AuthUser, AuthResponseData } from '../types/auth';
 import {
   loginApi,
   registerApi,
   logoutApi,
   getMeApi,
+  refreshTokenApi,
   LoginPayload,
   RegisterPayload,
 } from '../api/auth.api';
@@ -78,8 +79,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initAuth = async () => {
       const storedToken = localStorage.getItem('framelog_token');
       if (!storedToken) {
-        if (isMounted) {
-          setLoading(false);
+        // Try cookie-based refresh token if available
+        try {
+          const refRes = await refreshTokenApi();
+          if (isMounted && refRes.data?.user && refRes.data?.accessToken) {
+            localStorage.setItem('framelog_token', refRes.data.accessToken);
+            setAccessToken(refRes.data.accessToken);
+            setUser(formatAuthUser(refRes.data.user));
+          }
+        } catch {
+          // No active session
+        } finally {
+          if (isMounted) setLoading(false);
         }
         return;
       }
@@ -90,8 +101,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (isMounted && res.data?.user) {
           setUser(formatAuthUser(res.data.user));
         }
-      } catch (error) {
-        console.warn('[Auth] Session validation failed or expired:', error);
+      } catch {
+        // Access token might be expired, try refreshing
+        try {
+          const refRes = await refreshTokenApi();
+          if (isMounted && refRes.data?.user && refRes.data?.accessToken) {
+            localStorage.setItem('framelog_token', refRes.data.accessToken);
+            setAccessToken(refRes.data.accessToken);
+            setUser(formatAuthUser(refRes.data.user));
+            return;
+          }
+        } catch {
+          // Refresh token is also expired or invalid
+        }
+
+        console.warn('[Auth] Session validation failed or expired');
         localStorage.removeItem('framelog_token');
         if (isMounted) {
           setUser(null);

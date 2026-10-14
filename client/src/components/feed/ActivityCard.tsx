@@ -16,24 +16,46 @@ const verbs = { review: 'reviewed', watched: 'watched', list: 'published a list'
 
 export function ActivityCard({ activity }: ActivityCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const user = getUser(activity.userId);
-  const film = getFilm(activity.filmId);
-  const verb = activity.rewatch ? 'rewatched' : verbs[activity.kind];
+  const user: User = activity.user
+    ? {
+        id: activity.userId || activity.user.id || '',
+        name: activity.user.name || 'User',
+        handle: activity.user.handle || (activity.user as any).username || 'user',
+        initials:
+          activity.user.initials ||
+          (activity.user.name || 'U')
+            .split(' ')
+            .map((n) => n[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase(),
+        tone: activity.user.tone || 'rgba(212, 175, 55, 0.2)',
+        avatar: (activity.user as any).avatar,
+      }
+    : getUser(activity.userId);
+
+  const film = (activity.film as any) || getFilm(activity.filmId);
+  const verb = activity.rewatch ? 'rewatched' : verbs[activity.kind] || 'logged';
 
   return (
     <article className="py-7">
       <header className="flex items-center gap-3">
-        <Avatar user={user} size="sm" />
+        <Link to={`/app/profile/${user.id || user.handle}`} className="shrink-0 transition-opacity hover:opacity-80">
+          <Avatar user={user} size="sm" />
+        </Link>
         <p className="min-w-0 flex-1 truncate text-sm text-fg-subtle">
-          <span className="font-medium text-fg">{user.name}</span> {verb}
-          {activity.kind === 'watched' && film &&
-          <>
+          <Link to={`/app/profile/${user.id || user.handle}`} className="font-medium text-fg hover:underline">
+            {user.name}
+          </Link>{' '}
+          {verb}
+          {activity.kind === 'watched' && film && (
+            <>
               {' '}
               <Link to={`/app/film/${film.id}`} className="text-fg-muted hover:text-fg">
                 {film.title}
               </Link>
             </>
-          }
+          )}
         </p>
         <time className="shrink-0 text-xs text-fg-faint">{activity.time}</time>
       </header>

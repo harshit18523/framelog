@@ -1,9 +1,12 @@
+import type { Film } from './film';
+
 export type User = {
   id: string;
   name: string;
   handle: string;
   initials: string;
   tone: string;
+  avatar?: string;
   bio?: string;
   location?: string;
 };
@@ -13,6 +16,8 @@ export type ActivityKind = 'review' | 'watched' | 'list';
 export type Activity = {
   id: string;
   userId: string;
+  user?: Partial<User> & { username?: string };
+  film?: Film;
   kind: ActivityKind;
   filmId?: string;
   rating?: number;
@@ -26,6 +31,7 @@ export type Activity = {
   time: string;
   likes: number;
   comments: number;
+  createdAt?: string;
 };
 
 export type Review = {

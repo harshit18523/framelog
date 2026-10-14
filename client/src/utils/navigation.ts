@@ -7,6 +7,8 @@ export function isNavActive(id: string, pathname: string, search: string): boole
       return pathname.startsWith('/app/discover');
     case 'diary':
       return pathname.startsWith('/app/diary');
+    case 'chats':
+      return pathname.startsWith('/app/chats');
     case 'lists':
       return pathname.startsWith('/app/profile') && tab === 'lists';
     case 'profile':

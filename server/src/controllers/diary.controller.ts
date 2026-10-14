@@ -1,4 +1,4 @@
-﻿import { Response } from 'express';
+import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import asyncHandler from '../utils/asyncHandler';
 import ApiResponse from '../utils/ApiResponse';
@@ -14,9 +14,9 @@ import tmdbService from '../services/tmdb.service';
  * @access  Private
  */
 export const getDiaryEntries = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const userId = req.user!._id;
+  const targetUserId = (req.query.userId as string) || req.user!._id;
 
-  const entries = await DiaryEntry.find({ userId }).sort({ date: -1, createdAt: -1 });
+  const entries = await DiaryEntry.find({ userId: targetUserId }).sort({ date: -1, createdAt: -1 });
 
   res.status(200).json(new ApiResponse(entries, 'Diary entries retrieved successfully'));
 });

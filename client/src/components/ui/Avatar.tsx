@@ -19,18 +19,27 @@ type AvatarProps = {
 };
 
 export function Avatar({ user, size = 'md', className }: AvatarProps) {
+  if (user.avatar) {
+    return (
+      <img
+        src={user.avatar}
+        alt={user.name}
+        className={twMerge('inline-block shrink-0 rounded-full object-cover ring-1 ring-inset ring-white/10', sizes[size], className)}
+      />
+    );
+  }
+
   return (
     <span
       role="img"
       aria-label={user.name}
-      style={{ backgroundColor: user.tone }}
+      style={{ backgroundColor: user.tone || 'rgba(212, 175, 55, 0.2)' }}
       className={twMerge(
         'inline-grid shrink-0 select-none place-items-center rounded-full font-semibold tracking-wide text-fg ring-1 ring-inset ring-white/10',
         sizes[size],
         className
       )}>
-      
-      {user.initials}
-    </span>);
-
+      {user.initials || user.name?.[0]?.toUpperCase() || 'U'}
+    </span>
+  );
 }

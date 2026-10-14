@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { HeartIcon, RepeatIcon } from 'lucide-react';
 import { useLibrary } from '../../contexts/LibraryContext';
 import { getFilm } from '../../utils/films';
@@ -15,44 +15,137 @@ const sortOptions: { id: SortKey; label: string }[] = [
   { id: 'year', label: 'Release year' },
 ];
 
+interface FilmGridItem {
+  film: Film;
+  date: string;
+  dateSortValue: number;
+  rating: number;
+  userRated: boolean;
+  rewatch: boolean;
+  liked: boolean;
+}
+
 export function ProfileFilmsGrid() {
-  const { entries, liked } = useLibrary();
+  const { entries, liked, watched, watchedItems } = useLibrary();
   const [sort, setSort] = useState<SortKey>('recent');
 
   const items = useMemo(() => {
-    const list: Array<{
-      film: Film;
-      date: string;
-      rating: number;
-      rewatch: boolean;
-      liked: boolean;
-    }> = [];
+    const filmMap = new Map<string, FilmGridItem>();
 
+    // 1. Process diary entries (which have specific logged dates, ratings, and reviews)
     entries.forEach((entry) => {
       const film = ((entry.film as unknown) as Film) || getFilm(entry.filmId);
-      if (film) {
-        list.push({
+      if (!film || !film.id) return;
+
+      const dateStr = entry.date || '';
+      const timestamp = dateStr ? new Date(dateStr).getTime() : 0;
+      const validTimestamp = isNaN(timestamp) ? 0 : timestamp;
+      const entryRating = entry.rating != null ? entry.rating : undefined;
+
+      const existing = filmMap.get(film.id);
+      if (!existing) {
+        filmMap.set(film.id, {
           film,
-          date: entry.date,
-          rating: entry.rating ?? Math.round(film.averageRating * 2) / 2,
-          rewatch: entry.rewatch ?? false,
-          liked: liked.includes(film.id),
+          date: dateStr,
+          dateSortValue: validTimestamp,
+          rating: entryRating ?? (film.averageRating ? Math.round(film.averageRating * 2) / 2 : 0),
+          userRated: entryRating != null,
+          rewatch: Boolean(entry.rewatch),
+          liked: liked.includes(film.id) || Boolean(entry.liked),
         });
+      } else {
+        // Deduplicate: merge into the single unique film entry
+        if (validTimestamp > existing.dateSortValue) {
+          existing.date = dateStr;
+          existing.dateSortValue = validTimestamp;
+        }
+        if (entryRating != null && !existing.userRated) {
+          existing.rating = entryRating;
+          existing.userRated = true;
+        } else if (entryRating != null && entryRating > existing.rating) {
+          existing.rating = entryRating;
+        }
+        if (entry.rewatch) existing.rewatch = true;
+        if (entry.liked || liked.includes(film.id)) existing.liked = true;
       }
     });
 
-    return list.sort((a, b) => {
-      if (sort === 'rating') return b.rating - a.rating;
-      if (sort === 'year') return b.film.year - a.film.year;
-      return b.date.localeCompare(a.date);
+    // 2. Process watched items (films marked as watched directly)
+    watchedItems.forEach((item) => {
+      const film = ((item.film as unknown) as Film) || getFilm(item.filmId);
+      if (!film || !film.id) return;
+
+      const dateStr = item.createdAt ? item.createdAt.slice(0, 10) : '';
+      const timestamp = item.createdAt ? new Date(item.createdAt).getTime() : 0;
+      const validTimestamp = isNaN(timestamp) ? 0 : timestamp;
+
+      const existing = filmMap.get(film.id);
+      if (!existing) {
+        filmMap.set(film.id, {
+          film,
+          date: dateStr,
+          dateSortValue: validTimestamp,
+          rating: film.averageRating ? Math.round(film.averageRating * 2) / 2 : 0,
+          userRated: false,
+          rewatch: false,
+          liked: liked.includes(film.id),
+        });
+      } else {
+        if (validTimestamp > existing.dateSortValue && !existing.date) {
+          existing.date = dateStr;
+          existing.dateSortValue = validTimestamp;
+        }
+        if (liked.includes(film.id)) existing.liked = true;
+      }
     });
-  }, [entries, liked, sort]);
+
+    // 3. Fallback for any film IDs in watched list without full item object
+    watched.forEach((filmId) => {
+      if (filmMap.has(filmId)) return;
+      const film = getFilm(filmId);
+      if (!film || !film.id) return;
+
+      filmMap.set(film.id, {
+        film,
+        date: '',
+        dateSortValue: 0,
+        rating: film.averageRating ? Math.round(film.averageRating * 2) / 2 : 0,
+        userRated: false,
+        rewatch: false,
+        liked: liked.includes(film.id),
+      });
+    });
+
+    // 4. Return an immutably sorted list
+    const uniqueList = Array.from(filmMap.values());
+
+    return uniqueList.sort((a, b) => {
+      if (sort === 'rating') {
+        const diff = (b.rating ?? 0) - (a.rating ?? 0);
+        if (diff !== 0) return diff;
+        return b.dateSortValue - a.dateSortValue;
+      }
+      if (sort === 'year') {
+        const yearA = Number(a.film.year) || 0;
+        const yearB = Number(b.film.year) || 0;
+        const diff = yearB - yearA;
+        if (diff !== 0) return diff;
+        return (a.film.title || '').localeCompare(b.film.title || '');
+      }
+      // 'recent'
+      const timeDiff = b.dateSortValue - a.dateSortValue;
+      if (timeDiff !== 0) return timeDiff;
+      return (b.date || '').localeCompare(a.date || '');
+    });
+  }, [entries, liked, watched, watchedItems, sort]);
 
   if (items.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-line-strong px-6 py-16 text-center">
-        <p className="text-[15px] font-medium">No films logged yet</p>
-        <p className="mt-1.5 text-sm text-fg-subtle">Films you log in your diary will collect here.</p>
+        <p className="text-[15px] font-medium">No films watched yet</p>
+        <p className="mt-1.5 text-sm text-fg-subtle">
+          Films you mark as watched or log in your diary will collect here.
+        </p>
         <ButtonLink to="/app/discover" variant="secondary" size="sm" className="mt-5">
           Discover films
         </ButtonLink>

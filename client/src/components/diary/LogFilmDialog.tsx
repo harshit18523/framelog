@@ -1,9 +1,9 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { HeartIcon, RepeatIcon, SearchIcon, XIcon, Loader2Icon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLibrary } from '../../contexts/LibraryContext';
-import { TODAY_ISO } from '../../utils/dates';
+import { getTodayIso, TODAY_ISO } from '../../utils/dates';
 import { cacheFilm, cacheFilms, getFilm } from '../../utils/films';
 import { Poster } from '../film/Poster';
 import { Button } from '../ui/Button';
@@ -18,7 +18,7 @@ export function LogFilmDialog() {
   const { logDialog, closeLog, addEntry } = useLibrary();
   const [filmId, setFilmId] = useState<string | undefined>();
   const [query, setQuery] = useState('');
-  const [date, setDate] = useState(TODAY_ISO);
+  const [date, setDate] = useState(getTodayIso);
   const [rating, setRating] = useState<number | undefined>();
   const [review, setReview] = useState('');
   const [liked, setLiked] = useState(false);
@@ -32,7 +32,7 @@ export function LogFilmDialog() {
   useEffect(() => {
     if (!logDialog.open) return;
     setFilmId(logDialog.filmId);
-    setDate(logDialog.date ?? TODAY_ISO);
+    setDate(logDialog.date ?? getTodayIso());
     setQuery('');
     setRating(undefined);
     setReview('');
@@ -249,7 +249,7 @@ export function LogFilmDialog() {
                       <input
                         type="date"
                         value={date}
-                        max={TODAY_ISO}
+                        max={getTodayIso()}
                         onChange={(e) => setDate(e.target.value)}
                         className="h-10 w-full rounded-xl bg-white/[0.05] px-3 text-sm text-fg ring-1 ring-inset ring-line focus:outline-none focus:ring-gold/50"
                       />

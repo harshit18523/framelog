@@ -1,4 +1,4 @@
-﻿import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { DiaryEntry } from '../types/film';
 import { TODAY_ISO } from '../utils/dates';
 import { cacheFilm, getFilm } from '../utils/films';
@@ -9,6 +9,9 @@ import {
   createDiaryEntryApi,
   updateDiaryEntryApi,
   deleteDiaryEntryApi,
+  getWatchedApi,
+  addWatchedApi,
+  removeWatchedApi,
   getWatchlistApi,
   addToWatchlistApi,
   removeFromWatchlistApi,
@@ -25,6 +28,8 @@ type LogDialogState = {
 
 type LibraryContextValue = {
   entries: DiaryEntry[];
+  watched: string[];
+  watchedItems: Array<{ id: string; filmId: string; film?: Partial<Film>; createdAt?: string }>;
   watchlist: string[];
   liked: string[];
   logDialog: LogDialogState;
@@ -46,6 +51,10 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
   const screenInit = useScreenInit() as { logOpen?: boolean; logFilmId?: string };
 
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
+  const [watched, setWatched] = useState<string[]>([]);
+  const [watchedItems, setWatchedItems] = useState<
+    Array<{ id: string; filmId: string; film?: Partial<Film>; createdAt?: string }>
+  >([]);
   const [watchlist, setWatchlist] = useState<string[]>([]);
   const [liked, setLiked] = useState<string[]>([]);
 
@@ -58,6 +67,8 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) {
       setEntries([]);
+      setWatched([]);
+      setWatchedItems([]);
       setWatchlist([]);
       setLiked([]);
       return;
@@ -67,10 +78,14 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
 
     const fetchLibrary = async () => {
       try {
-        const [diaryEntries, watchlistData, likesData] = await Promise.all([
+        const [diaryEntries, watchedData, watchlistData, likesData] = await Promise.all([
           getDiaryEntriesApi().catch((err) => {
             console.error('[Library] Failed to load diary:', err);
             return [] as DiaryEntry[];
+          }),
+          getWatchedApi().catch((err) => {
+            console.error('[Library] Failed to load watched:', err);
+            return { items: [], filmIds: [] };
           }),
           getWatchlistApi().catch((err) => {
             console.error('[Library] Failed to load watchlist:', err);
@@ -88,11 +103,16 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
         diaryEntries.forEach((entry) => {
           if (entry.film) cacheFilm(entry.film);
         });
+        watchedData.items?.forEach((item) => {
+          if (item.film) cacheFilm(item.film as any);
+        });
         watchlistData.items?.forEach((item) => {
           if (item.film) cacheFilm(item.film as any);
         });
 
         setEntries(diaryEntries);
+        setWatched(watchedData.filmIds || []);
+        setWatchedItems(watchedData.items || []);
         setWatchlist(watchlistData.filmIds || []);
         setLiked(likesData.filmIds || []);
       } catch (err) {
@@ -115,6 +135,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
       const optimisticEntry: DiaryEntry = { ...entryData, id: tempId, film };
 
       setEntries((prev) => [optimisticEntry, ...prev.filter((e) => e.filmId !== entryData.filmId)]);
+      setWatched((prev) => (prev.includes(entryData.filmId) ? prev : [...prev, entryData.filmId]));
       setWatchlist((prev) => prev.filter((id) => id !== entryData.filmId));
       if (entryData.liked) {
         setLiked((prev) => (prev.includes(entryData.filmId) ? prev : [...prev, entryData.filmId]));
@@ -138,29 +159,44 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
 
   const toggleWatched = useCallback(
     async (filmId: string) => {
-      const existing = entries.find((e) => e.filmId === filmId);
+      const isAlreadyWatched = watched.includes(filmId);
+      const film = getFilm(filmId);
 
-      if (existing) {
-        // Remove watched entry
-        setEntries((prev) => prev.filter((e) => e.id !== existing.id));
+      if (isAlreadyWatched) {
+        // Optimistically remove from watched
+        setWatched((prev) => prev.filter((id) => id !== filmId));
+        setWatchedItems((prev) => prev.filter((item) => item.filmId !== filmId));
         try {
-          await deleteDiaryEntryApi(existing.id);
+          await removeWatchedApi(filmId);
         } catch (err) {
-          console.error('[Library] Failed to delete diary entry:', err);
+          console.error('[Library] Failed to remove from watched:', err);
           // Rollback
-          setEntries((prev) => [existing, ...prev]);
+          setWatched((prev) => [...prev, filmId]);
+          if (film) {
+            setWatchedItems((prev) => [...prev, { id: `watched-${filmId}`, filmId, film }]);
+          }
         }
       } else {
-        // Add new watched entry
-        addEntry({
-          filmId,
-          date: TODAY_ISO,
-          liked: false,
-          rewatch: false,
-        });
+        // Optimistically add to watched
+        setWatched((prev) => [...prev, filmId]);
+        setWatchedItems((prev) => [
+          { id: `watched-${Date.now()}`, filmId, film, createdAt: new Date().toISOString() },
+          ...prev.filter((i) => i.filmId !== filmId),
+        ]);
+        // Also remove from watchlist if it was there
+        setWatchlist((prev) => prev.filter((id) => id !== filmId));
+
+        try {
+          await addWatchedApi(filmId, film);
+        } catch (err) {
+          console.error('[Library] Failed to mark as watched:', err);
+          // Rollback
+          setWatched((prev) => prev.filter((id) => id !== filmId));
+          setWatchedItems((prev) => prev.filter((item) => item.filmId !== filmId));
+        }
       }
     },
-    [entries, addEntry]
+    [watched]
   );
 
   const toggleWatchlist = useCallback(
@@ -252,10 +288,12 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<LibraryContextValue>(
     () => ({
       entries,
+      watched,
+      watchedItems,
       watchlist,
       liked,
       logDialog,
-      isWatched: (filmId) => entries.some((e) => e.filmId === filmId),
+      isWatched: (filmId) => watched.includes(filmId) || entries.some((e) => e.filmId === filmId),
       ratingFor: (filmId) => entries.find((e) => e.filmId === filmId && e.rating != null)?.rating,
       addEntry,
       toggleWatched,
@@ -267,6 +305,8 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       entries,
+      watched,
+      watchedItems,
       watchlist,
       liked,
       logDialog,

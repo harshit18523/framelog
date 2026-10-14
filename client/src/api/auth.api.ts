@@ -1,4 +1,4 @@
-﻿import apiClient from './client';
+import apiClient from './client';
 import { ApiResponse, AuthResponseData } from '../types/auth';
 
 export interface RegisterPayload {
@@ -32,3 +32,9 @@ export const getMeApi = async (): Promise<ApiResponse<{ user: AuthResponseData['
   const response = await apiClient.get<ApiResponse<{ user: AuthResponseData['user'] }>>('/auth/me');
   return response.data;
 };
+
+export const refreshTokenApi = async (): Promise<ApiResponse<AuthResponseData>> => {
+  const response = await apiClient.post<ApiResponse<AuthResponseData>>('/auth/refresh');
+  return response.data;
+};
+

@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AppShell } from './components/app/AppShell';
@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ScrollToTop } from './components/ScrollToTop';
 import { AuthProvider } from './contexts/AuthContext';
 import { LibraryProvider } from './contexts/LibraryContext';
+import { Chats } from './pages/Chats';
 import { Diary } from './pages/Diary';
 import { Discover } from './pages/Discover';
 import { FilmDetail } from './pages/FilmDetail';
@@ -32,7 +33,9 @@ export function App() {
                 <Route index element={<Home />} />
                 <Route path="discover" element={<Discover />} />
                 <Route path="diary" element={<Diary />} />
+                <Route path="chats" element={<Chats />} />
                 <Route path="profile" element={<Profile />} />
+                <Route path="profile/:id" element={<Profile />} />
                 <Route path="film/:id" element={<FilmDetail />} />
               </Route>
             </Route>

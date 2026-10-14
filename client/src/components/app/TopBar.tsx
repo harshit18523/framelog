@@ -1,6 +1,16 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
-import { PlusIcon, SearchIcon, LogOutIcon, Loader2Icon, StarIcon } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  PlusIcon,
+  SearchIcon,
+  LogOutIcon,
+  Loader2Icon,
+  StarIcon,
+  MessageSquareIcon,
+  FilmIcon,
+  UsersIcon,
+} from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useLibrary } from '../../contexts/LibraryContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { currentUser } from '../../data/users';
@@ -9,7 +19,10 @@ import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { NotificationsMenu } from './NotificationsMenu';
 import { searchFilmsApi } from '../../api/films.api';
+import { searchUsersApi, UserSearchResult } from '../../api/users.api';
+import { getOrCreateConversationApi } from '../../api/chats.api';
 import { cacheFilms } from '../../utils/films';
+import { formatUserForUi } from '../../utils/user';
 import type { Film } from '../../types/film';
 
 export function TopBar() {
@@ -18,8 +31,10 @@ export function TopBar() {
   const { user, logout } = useAuth();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Film[]>([]);
+  const [userResults, setUserResults] = useState<UserSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'films' | 'people'>('all');
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -52,11 +67,12 @@ export function TopBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Real-time search with debounce (350ms)
+  // Real-time search with debounce (350ms) for both TMDB Films and People
   useEffect(() => {
     const q = query.trim();
     if (!q) {
       setResults([]);
+      setUserResults([]);
       setSearching(false);
       setIsOpen(false);
       return;
@@ -68,13 +84,33 @@ export function TopBar() {
 
     const timer = setTimeout(async () => {
       try {
-        const res = await searchFilmsApi(q);
+        const [filmsSettled, usersSettled] = await Promise.allSettled([
+          searchFilmsApi(q),
+          searchUsersApi(q),
+        ]);
+
         if (!isMounted) return;
-        cacheFilms(res.results);
-        setResults(res.results.slice(0, 5));
+
+        if (filmsSettled.status === 'fulfilled') {
+          cacheFilms(filmsSettled.value.results);
+          setResults(filmsSettled.value.results.slice(0, 5));
+        } else {
+          console.error('[TopBar] Film search error:', filmsSettled.reason);
+          setResults([]);
+        }
+
+        if (usersSettled.status === 'fulfilled') {
+          setUserResults(usersSettled.value.slice(0, 5));
+        } else {
+          console.error('[TopBar] Users search error:', usersSettled.reason);
+          setUserResults([]);
+        }
       } catch (err) {
-        console.error('[TopBar] Search error:', err);
-        if (isMounted) setResults([]);
+        console.error('[TopBar] Search exception:', err);
+        if (isMounted) {
+          setResults([]);
+          setUserResults([]);
+        }
       } finally {
         if (isMounted) setSearching(false);
       }
@@ -101,7 +137,28 @@ export function TopBar() {
     setQuery('');
   };
 
+  const handleSelectUser = (targetUsername: string) => {
+    navigate(`/app/profile/${targetUsername}`);
+    setIsOpen(false);
+    setQuery('');
+  };
+
+  const handleStartMessage = async (e: React.MouseEvent, targetUserId: string) => {
+    e.stopPropagation();
+    try {
+      const conv = await getOrCreateConversationApi(targetUserId);
+      setIsOpen(false);
+      setQuery('');
+      navigate(`/app/chats?id=${conv.id}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Could not start conversation');
+    }
+  };
+
   const activeUser = user || currentUser;
+  const hasFilms = results.length > 0;
+  const hasUsers = userResults.length > 0;
+  const hasAnyResults = hasFilms || hasUsers;
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-canvas/75 backdrop-blur-xl backdrop-saturate-150">
@@ -110,11 +167,11 @@ export function TopBar() {
           <Logo to="/app" />
         </div>
 
-        {/* Global Real-time Search */}
+        {/* Global Real-time Search: Films + People */}
         <div className="relative hidden max-w-lg flex-1 sm:block">
           <form role="search" onSubmit={handleSubmit} className="relative">
             <label htmlFor="global-search" className="sr-only">
-              Search films
+              Search films and people
             </label>
             <SearchIcon
               size={16}
@@ -126,9 +183,9 @@ export function TopBar() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => {
-                if (query.trim() && results.length > 0) setIsOpen(true);
+                if (query.trim() && (hasFilms || hasUsers)) setIsOpen(true);
               }}
-              placeholder="Search movies in real-time..."
+              placeholder="Search films & people in real-time..."
               className="h-10 w-full rounded-full bg-white/[0.05] pl-10 pr-14 text-sm text-fg ring-1 ring-inset ring-line placeholder:text-fg-subtle transition-[background-color,box-shadow] duration-150 hover:bg-white/[0.07] focus:bg-white/[0.07] focus:outline-none focus:ring-gold/50"
             />
             {searching ? (
@@ -147,60 +204,165 @@ export function TopBar() {
           {isOpen && query.trim() && (
             <div
               ref={dropdownRef}
-              className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-2xl border border-line-strong bg-surface-raised/95 p-2 shadow-elevated backdrop-blur-2xl"
+              className="absolute left-0 right-0 top-12 z-50 max-h-[80vh] overflow-y-auto rounded-2xl border border-line-strong bg-surface-raised/95 p-2 shadow-elevated backdrop-blur-2xl"
             >
-              {searching && results.length === 0 ? (
+              {searching && !hasAnyResults ? (
                 <div className="flex items-center justify-center gap-2 py-6 text-xs text-fg-subtle">
-                  <Loader2Icon size={14} className="animate-spin text-gold" /> Searching TMDB...
+                  <Loader2Icon size={14} className="animate-spin text-gold" /> Searching films & people...
                 </div>
-              ) : results.length > 0 ? (
-                <ul className="space-y-1">
-                  {results.map((film) => (
-                    <li key={film.id}>
+              ) : hasAnyResults ? (
+                <div className="space-y-3">
+                  {/* Category switcher pills if both exist */}
+                  {hasFilms && hasUsers && (
+                    <div className="flex items-center gap-1 border-b border-line px-1 pb-2 text-[11px]">
                       <button
                         type="button"
-                        onClick={() => handleSelectFilm(film.id)}
-                        className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-white/[0.06]"
+                        onClick={() => setActiveFilter('all')}
+                        className={`rounded-lg px-2.5 py-1 font-medium transition-colors ${
+                          activeFilter === 'all'
+                            ? 'bg-gold/15 text-gold'
+                            : 'text-fg-subtle hover:text-fg'
+                        }`}
                       >
-                        {film.poster ? (
-                          <img
-                            src={film.poster}
-                            alt=""
-                            className="h-11 w-8 rounded-md object-cover ring-1 ring-white/10"
-                          />
-                        ) : (
-                          <div className="grid h-11 w-8 place-items-center rounded-md bg-white/[0.06] text-[9px] text-fg-faint">
-                            Art
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-fg">{film.title}</p>
-                          <p className="text-xs text-fg-subtle">
-                            {film.year || '—'} {film.director !== 'Various' ? `· ${film.director}` : ''}
-                          </p>
-                        </div>
-                        {film.averageRating > 0 && (
-                          <span className="flex items-center gap-1 text-xs text-gold">
-                            <StarIcon size={12} fill="currentColor" />
-                            {film.averageRating.toFixed(1)}
-                          </span>
-                        )}
+                        All
                       </button>
-                    </li>
-                  ))}
-                  <li className="border-t border-line pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setActiveFilter('films')}
+                        className={`rounded-lg px-2.5 py-1 font-medium transition-colors ${
+                          activeFilter === 'films'
+                            ? 'bg-gold/15 text-gold'
+                            : 'text-fg-subtle hover:text-fg'
+                        }`}
+                      >
+                        Films ({results.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveFilter('people')}
+                        className={`rounded-lg px-2.5 py-1 font-medium transition-colors ${
+                          activeFilter === 'people'
+                            ? 'bg-gold/15 text-gold'
+                            : 'text-fg-subtle hover:text-fg'
+                        }`}
+                      >
+                        People ({userResults.length})
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Section: People */}
+                  {(activeFilter === 'all' || activeFilter === 'people') && hasUsers && (
+                    <div>
+                      <div className="flex items-center gap-1.5 px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">
+                        <UsersIcon size={12} className="text-gold" />
+                        People
+                      </div>
+                      <ul className="space-y-0.5">
+                        {userResults.map((u) => (
+                          <li key={u.id}>
+                            <div
+                              onClick={() => handleSelectUser(u.username)}
+                              className="group flex cursor-pointer items-center justify-between gap-3 rounded-xl p-2 text-left transition-colors hover:bg-white/[0.06]"
+                            >
+                              <div className="flex min-w-0 items-center gap-3">
+                                <Avatar user={formatUserForUi(u)} size="sm" />
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-medium text-fg group-hover:text-gold transition-colors">
+                                    {u.name}
+                                  </p>
+                                  <p className="truncate text-xs text-fg-subtle">@{u.username}</p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5">
+                                {u.isFollowing && (
+                                  <span className="rounded-full bg-white/[0.07] px-2 py-0.5 text-[10px] text-fg-muted">
+                                    Following
+                                  </span>
+                                )}
+                                {!u.isSelf && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleStartMessage(e, u.id)}
+                                    title="Send Message"
+                                    className="grid h-8 w-8 place-items-center rounded-lg text-fg-subtle hover:bg-gold/20 hover:text-gold transition-colors"
+                                  >
+                                    <MessageSquareIcon size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Section: Films */}
+                  {(activeFilter === 'all' || activeFilter === 'films') && hasFilms && (
+                    <div>
+                      <div className="flex items-center gap-1.5 px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">
+                        <FilmIcon size={12} className="text-gold" />
+                        Films
+                      </div>
+                      <ul className="space-y-1">
+                        {results.map((film) => (
+                          <li key={film.id}>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectFilm(film.id)}
+                              className="group flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-white/[0.06]"
+                            >
+                              {film.poster ? (
+                                <img
+                                  src={film.poster}
+                                  alt=""
+                                  className="h-11 w-8 rounded-md object-cover ring-1 ring-white/10"
+                                />
+                              ) : (
+                                <div className="grid h-11 w-8 place-items-center rounded-md bg-white/[0.06] text-[9px] text-fg-faint">
+                                  Art
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-fg group-hover:text-gold transition-colors">
+                                  {film.title}
+                                </p>
+                                <p className="text-xs text-fg-subtle">
+                                  {film.year || '—'}{' '}
+                                  {film.director && film.director !== 'Various'
+                                    ? `· ${film.director}`
+                                    : ''}
+                                </p>
+                              </div>
+                              {film.averageRating > 0 && (
+                                <span className="flex items-center gap-1 text-xs text-gold">
+                                  <StarIcon size={12} fill="currentColor" />
+                                  {film.averageRating.toFixed(1)}
+                                </span>
+                              )}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* See all search results footer */}
+                  <div className="border-t border-line pt-1">
                     <button
                       type="button"
                       onClick={handleSubmit}
                       className="w-full rounded-lg py-1.5 text-center text-xs text-fg-muted hover:text-gold transition-colors"
                     >
-                      See all results for “{query}” →
+                      See all movie results for “{query}” →
                     </button>
-                  </li>
-                </ul>
+                  </div>
+                </div>
               ) : !searching ? (
                 <div className="py-6 text-center text-xs text-fg-subtle">
-                  No movies found for “{query}”
+                  No films or people found for “{query}”
                 </div>
               ) : null}
             </div>

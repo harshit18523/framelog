@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { CalendarDaysIcon, ListIcon, PlusIcon } from 'lucide-react';
 import { DiaryCalendar } from '../components/diary/DiaryCalendar';
 import { DiaryTimeline } from '../components/diary/DiaryTimeline';
@@ -16,7 +16,8 @@ export function Diary() {
   const screenInit = useScreenInit() as { diaryView?: DiaryView };
   const [view, setView] = useState<DiaryView>(screenInit.diaryView ?? 'timeline');
 
-  const thisMonth = entries.filter((e) => e.date.startsWith(TODAY_ISO.slice(0, 7)));
+  const currentMonthKey = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit' }).format(new Date());
+  const thisMonth = entries.filter((e) => e.date && e.date.startsWith(currentMonthKey));
   const minutes = thisMonth.reduce(
     (sum, e) => sum + ((e.film as any)?.runtime || getFilm(e.filmId)?.runtime || 110),
     0
