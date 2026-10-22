@@ -22,12 +22,13 @@ export const createApp = (): Application => {
 
   app.use(
     cors({
-      origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-          return callback(null, true);
-        }
-        return callback(new Error(`CORS blocked for origin: ${origin}`));
-      },
+      origin: process.env.CLIENT_URL || "http://localhost:5173",
+      // (origin, callback) => {
+      //   if (!origin || allowedOrigins.includes(origin)) {
+      //     return callback(null, true);
+      //   }
+      //   return callback(new Error(`CORS blocked for origin: ${origin}`));
+      // },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
