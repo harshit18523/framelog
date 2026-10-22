@@ -1,8 +1,8 @@
+import dotenv from 'dotenv';
 import express, { type Application } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
-import dotenv from 'dotenv';
 import apiRouter from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { fileURLToPath } from 'url';
@@ -25,13 +25,13 @@ export const createApp = (): Application => {
 
   app.use(
     cors({
-      origin: process.env.CLIENT_URL || "http://localhost:5173",
-      // (origin, callback) => {
-      //   if (!origin || allowedOrigins.includes(origin)) {
-      //     return callback(null, true);
-      //   }
-      //   return callback(new Error(`CORS blocked for origin: ${origin}`));
-      // },
+      origin: //process.env.CLIENT_URL || "http://localhost:5173",
+        (origin, callback) => {
+          if (!origin || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+          }
+          return callback(new Error(`CORS blocked for origin: ${origin}`));
+        },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
