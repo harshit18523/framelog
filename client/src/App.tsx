@@ -15,6 +15,7 @@ import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { Profile } from './pages/Profile';
 import { Register } from './pages/Register';
+import Testing from './pages/Testing';
 
 export function App() {
   return (
@@ -26,7 +27,8 @@ export function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            
+            <Route path="/testing" element={<Testing />} />
+
             {/* Authenticated Application Routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/app" element={<AppShell />}>
