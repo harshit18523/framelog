@@ -1,15 +1,15 @@
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import mongoose from 'mongoose';
-import authRoutes from './auth.routes';
-import filmRoutes from './film.routes';
-import diaryRoutes from './diary.routes';
-import watchlistRoutes from './watchlist.routes';
-import watchedRoutes from './watched.routes';
-import likesRoutes from './likes.routes';
-import userRoutes from './user.routes';
-import chatRoutes from './chat.routes';
-import feedRoutes from './feed.routes';
-import { ApiResponse } from '../utils/ApiResponse';
+import authRoutes from './auth.routes.js';
+import filmRoutes from './film.routes.js';
+import diaryRoutes from './diary.routes.js';
+import watchlistRoutes from './watchlist.routes.js';
+import watchedRoutes from './watched.routes.js';
+import likesRoutes from './likes.routes.js';
+import userRoutes from './user.routes.js';
+import chatRoutes from './chat.routes.js';
+import feedRoutes from './feed.routes.js';
+import { ApiResponse } from '../utils/ApiResponse.js';
 
 const router = Router();
 
