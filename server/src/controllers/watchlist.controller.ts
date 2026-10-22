@@ -1,10 +1,10 @@
 ﻿import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth.middleware';
-import asyncHandler from '../utils/asyncHandler';
-import ApiResponse from '../utils/ApiResponse';
-import ApiError from '../utils/ApiError';
-import WatchlistItem from '../models/WatchlistItem';
-import tmdbService from '../services/tmdb.service';
+import { AuthRequest } from '../middleware/auth.middleware.js';
+import asyncHandler from '../utils/asyncHandler.js';
+import ApiResponse from '../utils/ApiResponse.js';
+import ApiError from '../utils/ApiError.js';
+import WatchlistItem from '../models/WatchlistItem.js';
+import tmdbService from '../services/tmdb.service.js';
 
 /**
  * @desc    Get watchlist for authenticated user

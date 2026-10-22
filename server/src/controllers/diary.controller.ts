@@ -1,12 +1,12 @@
 import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth.middleware';
-import asyncHandler from '../utils/asyncHandler';
-import ApiResponse from '../utils/ApiResponse';
-import ApiError from '../utils/ApiError';
-import DiaryEntry from '../models/DiaryEntry';
-import WatchlistItem from '../models/WatchlistItem';
-import FilmLike from '../models/FilmLike';
-import tmdbService from '../services/tmdb.service';
+import { AuthRequest } from '../middleware/auth.middleware.js';
+import asyncHandler from '../utils/asyncHandler.js';
+import ApiResponse from '../utils/ApiResponse.js';
+import ApiError from '../utils/ApiError.js';
+import DiaryEntry from '../models/DiaryEntry.js';
+import WatchlistItem from '../models/WatchlistItem.js';
+import FilmLike from '../models/FilmLike.js';
+import tmdbService from '../services/tmdb.service.js';
 
 /**
  * @desc    Get all diary entries for authenticated user

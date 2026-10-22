@@ -1,5 +1,5 @@
-﻿import Film, { IFilm } from '../models/Film';
-import { ApiError } from '../utils/ApiError';
+﻿import Film, { IFilm } from '../models/Film.js';
+import { ApiError } from '../utils/ApiError.js';
 
 const TMDB_BASE_URL = process.env.TMDB_BASE_URL || 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE_POSTER = 'https://image.tmdb.org/t/p/w500';
@@ -131,19 +131,19 @@ export function formatTMDBFullMovie(movie: any): IFilm {
 
   const cast = Array.isArray(movie.credits?.cast)
     ? movie.credits.cast.slice(0, 10).map((c: any) => ({
-        name: c.name || '',
-        role: c.character || 'Cast',
-      }))
+      name: c.name || '',
+      role: c.character || 'Cast',
+    }))
     : [];
 
   const crew = Array.isArray(movie.credits?.crew)
     ? movie.credits.crew
-        .filter((c: any) => ['Director', 'Screenplay', 'Writer', 'Director of Photography', 'Original Music Composer', 'Producer'].includes(c.job))
-        .slice(0, 8)
-        .map((c: any) => ({
-          name: c.name || '',
-          role: c.job || 'Crew',
-        }))
+      .filter((c: any) => ['Director', 'Screenplay', 'Writer', 'Director of Photography', 'Original Music Composer', 'Producer'].includes(c.job))
+      .slice(0, 8)
+      .map((c: any) => ({
+        name: c.name || '',
+        role: c.job || 'Crew',
+      }))
     : [];
 
   const country = movie.production_countries?.[0]?.name || 'United States';
@@ -206,7 +206,7 @@ class TmdbService {
           { id: film.id },
           { ...film, cachedAt: new Date() },
           { upsert: true, setDefaultsOnInsert: true }
-        ).catch(() => {});
+        ).catch(() => { });
       });
 
       return {
@@ -293,7 +293,7 @@ class TmdbService {
           { id: film.id },
           { ...film, cachedAt: new Date() },
           { upsert: true, setDefaultsOnInsert: true }
-        ).catch(() => {});
+        ).catch(() => { });
       });
 
       return { results, page: data.page || page };
@@ -321,7 +321,7 @@ class TmdbService {
           { id: film.id },
           { ...film, cachedAt: new Date() },
           { upsert: true, setDefaultsOnInsert: true }
-        ).catch(() => {});
+        ).catch(() => { });
       });
 
       return { results };
@@ -360,7 +360,7 @@ class TmdbService {
           { id: film.id },
           { ...film, cachedAt: new Date() },
           { upsert: true, setDefaultsOnInsert: true }
-        ).catch(() => {});
+        ).catch(() => { });
       });
 
       return { results, page: data.page || options.page || 1 };

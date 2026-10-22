@@ -5,8 +5,8 @@ import dotenv from 'dotenv';
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config();
 
-import { createApp } from './app';
-import { connectDB, disconnectDB } from './config/db';
+import { createApp } from './app.js';
+import { connectDB, disconnectDB } from './config/db.js';
 
 const PORT = process.env.PORT || 5000;
 const app = createApp();

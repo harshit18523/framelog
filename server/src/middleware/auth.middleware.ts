@@ -1,8 +1,8 @@
 ﻿import { Request, Response, NextFunction } from 'express';
-import { verifyAccessToken } from '../utils/jwt';
-import { ApiError } from '../utils/ApiError';
-import { User, IUserDocument } from '../models/User';
-import asyncHandler from '../utils/asyncHandler';
+import { verifyAccessToken } from '../utils/jwt.js';
+import { ApiError } from '../utils/ApiError.js';
+import { User, IUserDocument } from '../models/User.js';
+import asyncHandler from '../utils/asyncHandler.js';
 
 // Extend Express Request interface to include authenticated user
 export interface AuthRequest extends Request {

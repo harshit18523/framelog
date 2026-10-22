@@ -5,7 +5,7 @@ import {
   getTrendingFilms,
   getDiscoverFilms,
   getFilmById,
-} from '../controllers/film.controller';
+} from '../controllers/film.controller.js';
 
 const router = Router();
 

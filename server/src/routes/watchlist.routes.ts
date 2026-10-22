@@ -3,8 +3,8 @@ import {
   getWatchlist,
   addToWatchlist,
   removeFromWatchlist,
-} from '../controllers/watchlist.controller';
-import { authenticate } from '../middleware/auth.middleware';
+} from '../controllers/watchlist.controller.js';
+import { authenticate } from '../middleware/auth.middleware.js';
 
 const router = Router();
 

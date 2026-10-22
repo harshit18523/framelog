@@ -1,10 +1,10 @@
 import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth.middleware';
-import asyncHandler from '../utils/asyncHandler';
-import ApiResponse from '../utils/ApiResponse';
-import Follow from '../models/Follow';
-import DiaryEntry from '../models/DiaryEntry';
-import WatchedFilm from '../models/WatchedFilm';
+import { AuthRequest } from '../middleware/auth.middleware.js';
+import asyncHandler from '../utils/asyncHandler.js';
+import ApiResponse from '../utils/ApiResponse.js';
+import Follow from '../models/Follow.js';
+import DiaryEntry from '../models/DiaryEntry.js';
+import WatchedFilm from '../models/WatchedFilm.js';
 
 function formatRelativeTime(date?: Date | string): string {
   if (!date) return 'Recently';
@@ -94,19 +94,19 @@ export const getFeed = asyncHandler(async (req: AuthRequest, res: Response) => {
       userId: user?._id?.toString() || '',
       user: user
         ? {
-            id: user._id.toString(),
-            name: user.name,
-            handle: user.username,
-            username: user.username,
-            avatar: user.avatar || '',
-            initials: (user.name || 'U')
-              .split(' ')
-              .map((n: string) => n[0])
-              .join('')
-              .slice(0, 2)
-              .toUpperCase(),
-            tone: 'gold',
-          }
+          id: user._id.toString(),
+          name: user.name,
+          handle: user.username,
+          username: user.username,
+          avatar: user.avatar || '',
+          initials: (user.name || 'U')
+            .split(' ')
+            .map((n: string) => n[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase(),
+          tone: 'gold',
+        }
         : undefined,
       kind: hasReview ? 'review' : 'watched',
       filmId: entry.filmId,

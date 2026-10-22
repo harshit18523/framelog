@@ -1,12 +1,12 @@
 import { Router } from 'express';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate } from '../middleware/auth.middleware.js';
 import {
   getConversations,
   getOrCreateConversation,
   getConversationMessages,
   sendMessage,
   markConversationAsRead,
-} from '../controllers/chat.controller';
+} from '../controllers/chat.controller.js';
 
 const router = Router();
 

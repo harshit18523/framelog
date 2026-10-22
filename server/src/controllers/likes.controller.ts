@@ -1,9 +1,9 @@
 ﻿import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth.middleware';
-import asyncHandler from '../utils/asyncHandler';
-import ApiResponse from '../utils/ApiResponse';
-import ApiError from '../utils/ApiError';
-import FilmLike from '../models/FilmLike';
+import { AuthRequest } from '../middleware/auth.middleware.js';
+import asyncHandler from '../utils/asyncHandler.js';
+import ApiResponse from '../utils/ApiResponse.js';
+import ApiError from '../utils/ApiError.js';
+import FilmLike from '../models/FilmLike.js';
 
 /**
  * @desc    Get liked film IDs for authenticated user

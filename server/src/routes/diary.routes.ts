@@ -4,8 +4,8 @@ import {
   createDiaryEntry,
   updateDiaryEntry,
   deleteDiaryEntry,
-} from '../controllers/diary.controller';
-import { authenticate } from '../middleware/auth.middleware';
+} from '../controllers/diary.controller.js';
+import { authenticate } from '../middleware/auth.middleware.js';
 
 const router = Router();
 

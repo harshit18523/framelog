@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
-import { User } from '../models/User';
-import { ApiError } from '../utils/ApiError';
-import { ApiResponse } from '../utils/ApiResponse';
-import { asyncHandler } from '../utils/asyncHandler';
-import { generateTokenPair, verifyRefreshToken } from '../utils/jwt';
-import { AuthRequest } from '../middleware/auth.middleware';
+import { User } from '../models/User.js';
+import { ApiError } from '../utils/ApiError.js';
+import { ApiResponse } from '../utils/ApiResponse.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { generateTokenPair, verifyRefreshToken } from '../utils/jwt.js';
+import { AuthRequest } from '../middleware/auth.middleware.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 

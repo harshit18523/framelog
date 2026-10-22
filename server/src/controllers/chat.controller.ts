@@ -1,12 +1,12 @@
 import { Response } from 'express';
 import mongoose from 'mongoose';
-import { AuthRequest } from '../middleware/auth.middleware';
-import { Conversation } from '../models/Conversation';
-import { Message } from '../models/Message';
-import { User } from '../models/User';
-import { ApiResponse } from '../utils/ApiResponse';
-import { ApiError } from '../utils/ApiError';
-import asyncHandler from '../utils/asyncHandler';
+import { AuthRequest } from '../middleware/auth.middleware.js';
+import { Conversation } from '../models/Conversation.js';
+import { Message } from '../models/Message.js';
+import { User } from '../models/User.js';
+import { ApiResponse } from '../utils/ApiResponse.js';
+import { ApiError } from '../utils/ApiError.js';
+import asyncHandler from '../utils/asyncHandler.js';
 
 // Helper to reliably extract string id from either ObjectId or populated user document
 const getParticipantId = (p: any): string => {
@@ -56,21 +56,21 @@ export const getConversations = asyncHandler(async (req: AuthRequest, res: Respo
         })),
         otherUser: otherParticipant
           ? {
-              id: getParticipantId(otherParticipant),
-              _id: getParticipantId(otherParticipant),
-              name: otherParticipant.name || 'User',
-              username: otherParticipant.username || 'user',
-              avatar: otherParticipant.avatar || '',
-              bio: otherParticipant.bio || '',
-            }
+            id: getParticipantId(otherParticipant),
+            _id: getParticipantId(otherParticipant),
+            name: otherParticipant.name || 'User',
+            username: otherParticipant.username || 'user',
+            avatar: otherParticipant.avatar || '',
+            bio: otherParticipant.bio || '',
+          }
           : null,
         lastMessage:
           conv.lastMessage && conv.lastMessage.content && conv.lastMessage.senderId
             ? {
-                content: conv.lastMessage.content,
-                senderId: conv.lastMessage.senderId.toString(),
-                createdAt: conv.lastMessage.createdAt,
-              }
+              content: conv.lastMessage.content,
+              senderId: conv.lastMessage.senderId.toString(),
+              createdAt: conv.lastMessage.createdAt,
+            }
             : null,
         unreadCount,
         updatedAt: conv.updatedAt,
@@ -144,23 +144,23 @@ export const getOrCreateConversation = asyncHandler(async (req: AuthRequest, res
     })),
     otherUser: otherParticipant
       ? {
-          id: getParticipantId(otherParticipant),
-          _id: getParticipantId(otherParticipant),
-          name: otherParticipant.name || 'User',
-          username: otherParticipant.username || 'user',
-          avatar: otherParticipant.avatar || '',
-          bio: otherParticipant.bio || '',
-        }
+        id: getParticipantId(otherParticipant),
+        _id: getParticipantId(otherParticipant),
+        name: otherParticipant.name || 'User',
+        username: otherParticipant.username || 'user',
+        avatar: otherParticipant.avatar || '',
+        bio: otherParticipant.bio || '',
+      }
       : null,
     lastMessage:
       conversation.lastMessage &&
-      conversation.lastMessage.content &&
-      conversation.lastMessage.senderId
+        conversation.lastMessage.content &&
+        conversation.lastMessage.senderId
         ? {
-            content: conversation.lastMessage.content,
-            senderId: conversation.lastMessage.senderId.toString(),
-            createdAt: conversation.lastMessage.createdAt,
-          }
+          content: conversation.lastMessage.content,
+          senderId: conversation.lastMessage.senderId.toString(),
+          createdAt: conversation.lastMessage.createdAt,
+        }
         : null,
     unreadCount: 0,
     updatedAt: conversation.updatedAt,
@@ -260,13 +260,13 @@ export const getConversationMessages = asyncHandler(async (req: AuthRequest, res
           })),
           otherUser: otherParticipant
             ? {
-                id: getParticipantId(otherParticipant),
-                _id: getParticipantId(otherParticipant),
-                name: otherParticipant.name || 'User',
-                username: otherParticipant.username || 'user',
-                avatar: otherParticipant.avatar || '',
-                bio: otherParticipant.bio || '',
-              }
+              id: getParticipantId(otherParticipant),
+              _id: getParticipantId(otherParticipant),
+              name: otherParticipant.name || 'User',
+              username: otherParticipant.username || 'user',
+              avatar: otherParticipant.avatar || '',
+              bio: otherParticipant.bio || '',
+            }
             : null,
           updatedAt: conversation.updatedAt,
         },

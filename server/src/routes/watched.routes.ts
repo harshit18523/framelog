@@ -3,8 +3,8 @@ import {
   getWatchedFilms,
   addWatchedFilm,
   removeWatchedFilm,
-} from '../controllers/watched.controller';
-import { authenticate } from '../middleware/auth.middleware';
+} from '../controllers/watched.controller.js';
+import { authenticate } from '../middleware/auth.middleware.js';
 
 const router = Router();
 

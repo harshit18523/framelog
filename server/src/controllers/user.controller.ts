@@ -1,12 +1,12 @@
 import { Response } from 'express';
 import mongoose from 'mongoose';
-import { AuthRequest } from '../middleware/auth.middleware';
-import { User } from '../models/User';
-import { Follow } from '../models/Follow';
-import { DiaryEntry } from '../models/DiaryEntry';
-import { ApiResponse } from '../utils/ApiResponse';
-import { ApiError } from '../utils/ApiError';
-import asyncHandler from '../utils/asyncHandler';
+import { AuthRequest } from '../middleware/auth.middleware.js';
+import { User } from '../models/User.js';
+import { Follow } from '../models/Follow.js';
+import { DiaryEntry } from '../models/DiaryEntry.js';
+import { ApiResponse } from '../utils/ApiResponse.js';
+import { ApiError } from '../utils/ApiError.js';
+import asyncHandler from '../utils/asyncHandler.js';
 
 /**
  * Search users by name or username
