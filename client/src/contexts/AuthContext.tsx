@@ -47,6 +47,7 @@ export const formatAuthUser = (raw: AuthResponseData['user']): AuthUser => {
     avatar: raw.avatar || '',
     bio: raw.bio || '',
     location: raw.location || '',
+    yearlyGoal: raw.yearlyGoal ?? 100,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
     handle: raw.username || 'user',
@@ -63,6 +64,7 @@ interface AuthContextType {
   login: (payload: LoginPayload) => Promise<AuthUser>;
   register: (payload: RegisterPayload) => Promise<AuthUser>;
   logout: () => Promise<void>;
+  updateUser: (updatedData: Partial<AuthUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -173,6 +175,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const updateUser = useCallback((updatedData: Partial<AuthUser>) => {
+    setUser((prev) => (prev ? { ...prev, ...updatedData } : null));
+  }, []);
+
   const value = {
     user,
     accessToken,
@@ -181,6 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     register,
     logout,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

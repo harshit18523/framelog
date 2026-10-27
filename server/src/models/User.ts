@@ -1,4 +1,4 @@
-﻿import mongoose, { Document, Model, Schema } from 'mongoose';
+import mongoose, { Document, Model, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export interface IUser {
@@ -9,6 +9,7 @@ export interface IUser {
   avatar?: string;
   bio?: string;
   location?: string;
+  yearlyGoal?: number;
   refreshToken?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -62,6 +63,12 @@ const userSchema = new Schema<IUserDocument>(
     location: {
       type: String,
       default: '',
+    },
+    yearlyGoal: {
+      type: Number,
+      default: 100,
+      min: [1, 'Yearly goal must be at least 1'],
+      max: [10000, 'Yearly goal cannot exceed 10000'],
     },
     refreshToken: {
       type: String,

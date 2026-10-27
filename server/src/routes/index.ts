@@ -9,6 +9,7 @@ import likesRoutes from './likes.routes.js';
 import userRoutes from './user.routes.js';
 import chatRoutes from './chat.routes.js';
 import feedRoutes from './feed.routes.js';
+import reviewRoutes from './review.routes.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 
 const router = Router();
@@ -41,9 +42,10 @@ router.use('/watched', watchedRoutes);
 router.use('/watchlist', watchlistRoutes);
 router.use('/likes', likesRoutes);
 
-// Social endpoints (Feed, Users, Follow, and Chats)
+// Social endpoints (Feed, Users, Follow, Chats, and Reviews)
 router.use('/feed', feedRoutes);
 router.use('/users', userRoutes);
 router.use('/chats', chatRoutes);
+router.use('/reviews', reviewRoutes);
 
 export default router;

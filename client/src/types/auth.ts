@@ -1,4 +1,4 @@
-﻿export interface AuthUser {
+export interface AuthUser {
   id: string;
   _id?: string;
   name: string;
@@ -7,6 +7,7 @@
   avatar?: string;
   bio?: string;
   location?: string;
+  yearlyGoal?: number;
   createdAt?: string;
   updatedAt?: string;
   // Computed fields for UI compatibility
@@ -25,6 +26,7 @@ export interface AuthResponseData {
     avatar?: string;
     bio?: string;
     location?: string;
+    yearlyGoal?: number;
     createdAt?: string;
     updatedAt?: string;
   };

@@ -7,12 +7,16 @@ import {
   unfollowUser,
   getFollowers,
   getFollowing,
+  updateYearlyGoal,
 } from '../controllers/user.controller.js';
 
 const router = Router();
 
 // Protect all user routes with JWT authentication
 router.use(authenticate);
+
+// Update yearly movie goal for authenticated user
+router.patch('/goal', updateYearlyGoal);
 
 // Search users by query
 router.get('/search', searchUsers);

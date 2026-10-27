@@ -110,3 +110,16 @@ export const getFeedApi = async (): Promise<FeedResponse> => {
   const res = await apiClient.get<ApiResponse<FeedResponse>>('/feed');
   return res.data.data || { items: [], followingCount: 0 };
 };
+
+/**
+ * Update the yearly film goal for the current user
+ */
+export const updateYearlyGoalApi = async (yearlyGoal: number): Promise<{ yearlyGoal: number }> => {
+  const res = await apiClient.patch<ApiResponse<{ yearlyGoal: number }>>('/users/goal', {
+    yearlyGoal,
+  });
+  if (!res.data.data) {
+    throw new Error(res.data.message || 'Failed to update goal');
+  }
+  return res.data.data;
+};

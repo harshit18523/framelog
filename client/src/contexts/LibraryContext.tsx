@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { DiaryEntry } from '../types/film';
+import type { DiaryEntry, Film } from '../types/film';
 import { TODAY_ISO } from '../utils/dates';
 import { cacheFilm, getFilm } from '../utils/films';
 import { useScreenInit } from '../useScreenInit.js';

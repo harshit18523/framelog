@@ -1,4 +1,4 @@
-﻿import { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import ApiError from '../utils/ApiError.js';
@@ -10,13 +10,28 @@ import tmdbService from '../services/tmdb.service.js';
  * @access  Public
  */
 export const searchFilms = asyncHandler(async (req: Request, res: Response) => {
-  const query = (req.query.query as string) || (req.query.q as string) || '';
+  const query = ((req.query.query as string) || (req.query.q as string) || '').trim();
   const genre = req.query.genre as string | undefined;
   const page = parseInt(req.query.page as string, 10) || 1;
 
   if (!query && !genre) {
     return res.status(200).json(
       new ApiResponse({ results: [], totalResults: 0, page: 1 }, 'No search query provided')
+    );
+  }
+
+  // If search query is empty but genre is provided, fetch top films in that genre from TMDB discover
+  if (!query && genre) {
+    const discoverResult = await tmdbService.getDiscoverMovies({ genre, page });
+    return res.status(200).json(
+      new ApiResponse(
+        {
+          results: discoverResult.results,
+          totalResults: discoverResult.results.length,
+          page: discoverResult.page,
+        },
+        'Films by genre retrieved successfully'
+      )
     );
   }
 

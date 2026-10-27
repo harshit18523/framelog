@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MessageCircleIcon, RepeatIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import type { Activity } from '../../types/social';
+import type { Activity, User } from '../../types/social';
 import { getFilm, getFilms, getUser } from '../../utils/films';
 import { Poster } from '../film/Poster';
 import { Avatar } from '../ui/Avatar';

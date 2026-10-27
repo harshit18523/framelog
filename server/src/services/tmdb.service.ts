@@ -1,4 +1,4 @@
-﻿import Film, { IFilm } from '../models/Film.js';
+import Film, { IFilm } from '../models/Film.js';
 import { ApiError } from '../utils/ApiError.js';
 
 const TMDB_BASE_URL = process.env.TMDB_BASE_URL || 'https://api.themoviedb.org/3';
@@ -34,7 +34,11 @@ export const GENRE_NAME_TO_ID: Record<string, number> = Object.entries(TMDB_GENR
     acc[name.toLowerCase()] = Number(id);
     return acc;
   },
-  {} as Record<string, number>
+  {
+    'science fiction': 878,
+    'scifi': 878,
+    'sci-fi': 878,
+  } as Record<string, number>
 );
 
 const formatCount = (count?: number): string => {

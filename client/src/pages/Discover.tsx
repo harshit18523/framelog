@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SearchIcon, XIcon, Loader2Icon } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { SpotlightCard } from '../components/discover/SpotlightCard';
@@ -174,10 +174,21 @@ export function Discover() {
 
         {/* Genre Filters */}
         <div
-          className="scrollbar-none -mx-4 mt-5 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0"
+          className="scrollbar-none -mx-4 mt-5 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0"
           role="group"
           aria-label="Filter by genre"
         >
+          {genre && (
+            <button
+              type="button"
+              onClick={() => update({ genre: null })}
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-gold/15 px-3 text-[13px] font-medium text-gold ring-1 ring-inset ring-gold/40 hover:bg-gold/25 transition-colors"
+            >
+              <XIcon size={13} />
+              Clear {genre}
+            </button>
+          )}
+
           {GENRE_FILTERS.map((g) => {
             const active = g.toLowerCase() === genre?.toLowerCase();
             return (
@@ -188,7 +199,7 @@ export function Discover() {
                 onClick={() => update({ genre: active ? null : g })}
                 className={`h-8 shrink-0 rounded-full px-3.5 text-[13px] font-medium ring-1 ring-inset transition-[background-color,color,transform] duration-150 ease-cinema active:scale-[0.97] ${
                   active
-                    ? 'bg-gold text-gold-ink ring-transparent'
+                    ? 'bg-gold text-gold-ink ring-transparent font-semibold shadow-sm'
                     : 'bg-white/[0.04] text-fg-muted ring-line hover:bg-white/[0.08] hover:text-fg'
                 }`}
               >
@@ -202,29 +213,41 @@ export function Discover() {
       {/* Search Results Mode */}
       {searching ? (
         <section aria-live="polite" className="mt-12">
-          <p className="mb-6 text-sm text-fg-subtle">
-            {loadingSearch ? (
-              <span className="flex items-center gap-2">
-                <Loader2Icon size={14} className="animate-spin text-gold" /> Searching TMDB database in real-time...
-              </span>
-            ) : (
-              <>
-                {searchResults.length} {searchResults.length === 1 ? 'film' : 'films'}
-                {query.trim() && (
-                  <>
-                    {' '}
-                    for “<span className="text-fg">{query}</span>”
-                  </>
-                )}
-                {genre && (
-                  <>
-                    {' '}
-                    in <span className="text-fg">{genre}</span>
-                  </>
-                )}
-              </>
-            )}
-          </p>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-fg-subtle">
+              {loadingSearch ? (
+                <span className="flex items-center gap-2">
+                  <Loader2Icon size={14} className="animate-spin text-gold" /> Loading films from TMDB...
+                </span>
+              ) : (
+                <>
+                  {searchResults.length} {searchResults.length === 1 ? 'film' : 'films'}
+                  {query.trim() && (
+                    <>
+                      {' '}
+                      for “<span className="text-fg">{query}</span>”
+                    </>
+                  )}
+                  {genre && (
+                    <>
+                      {' '}
+                      in <span className="font-medium text-fg">{genre}</span>
+                    </>
+                  )}
+                </>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setInput('');
+                setParams({}, { replace: true });
+              }}
+              className="text-xs text-gold hover:underline"
+            >
+              Clear filters
+            </button>
+          </div>
 
           {searchResults.length > 0 ? (
             <ul className="grid grid-cols-3 gap-x-4 gap-y-8 sm:grid-cols-4 sm:gap-x-5 lg:grid-cols-6">
@@ -246,7 +269,10 @@ export function Discover() {
                 variant="secondary"
                 size="sm"
                 className="mt-5"
-                onClick={() => setParams({}, { replace: true })}
+                onClick={() => {
+                  setInput('');
+                  setParams({}, { replace: true });
+                }}
               >
                 Clear filters
               </Button>

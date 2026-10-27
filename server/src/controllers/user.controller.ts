@@ -100,6 +100,7 @@ export const getUserProfile = asyncHandler(async (req: AuthRequest, res: Respons
     avatar: userDoc.avatar || '',
     bio: userDoc.bio || '',
     location: userDoc.location || '',
+    yearlyGoal: userDoc.yearlyGoal ?? 100,
     createdAt: userDoc.createdAt,
     followersCount,
     followingCount,
@@ -250,4 +251,43 @@ export const getFollowing = asyncHandler(async (req: AuthRequest, res: Response)
     });
 
   return res.status(200).json(new ApiResponse(followingUsers, 'Following list fetched'));
+});
+
+/**
+ * Update user yearly film goal
+ * PATCH /api/users/goal
+ * Body: { yearlyGoal: number }
+ */
+export const updateYearlyGoal = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const currentUserId = req.user?._id;
+  const { yearlyGoal } = req.body;
+
+  if (!currentUserId) {
+    throw new ApiError(401, 'Unauthorized');
+  }
+
+  const goal = parseInt(yearlyGoal, 10);
+  if (isNaN(goal) || goal < 1 || goal > 10000) {
+    throw new ApiError(400, 'Yearly goal must be a valid number between 1 and 10,000');
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    currentUserId,
+    { yearlyGoal: goal },
+    { new: true, runValidators: true }
+  );
+
+  if (!updatedUser) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  return res.status(200).json(
+    new ApiResponse(
+      {
+        yearlyGoal: updatedUser.yearlyGoal,
+        user: updatedUser,
+      },
+      'Yearly goal updated successfully'
+    )
+  );
 });
