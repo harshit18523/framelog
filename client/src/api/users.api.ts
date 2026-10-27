@@ -22,6 +22,12 @@ export interface UserProfileData {
   avatar?: string;
   bio?: string;
   location?: string;
+  age?: number;
+  email?: string;
+  phone?: string;
+  phoneCountry?: string;
+  phoneVerified?: boolean;
+  yearlyGoal?: number;
   createdAt?: string;
   followersCount: number;
   followingCount: number;
@@ -123,3 +129,62 @@ export const updateYearlyGoalApi = async (yearlyGoal: number): Promise<{ yearlyG
   }
   return res.data.data;
 };
+
+export interface UpdateProfilePayload {
+  name?: string;
+  username?: string;
+  bio?: string;
+  age?: number | string;
+  location?: string;
+  avatar?: string;
+  email?: string;
+  phone?: string;
+  phoneCountry?: string;
+  phoneVerified?: boolean;
+}
+
+/**
+ * Update authenticated user profile
+ */
+export const updateUserProfileApi = async (
+  payload: UpdateProfilePayload
+): Promise<import('../types/auth').AuthResponseData['user']> => {
+  const res = await apiClient.put<ApiResponse<{ user: import('../types/auth').AuthResponseData['user'] }>>(
+    '/users/profile',
+    payload
+  );
+  if (!res.data.data?.user) {
+    throw new Error(res.data.message || 'Failed to update profile');
+  }
+  return res.data.data.user;
+};
+
+/**
+ * Send 6-digit OTP to mobile number
+ */
+export const sendPhoneOtpApi = async (
+  phone: string,
+  countryCode: string
+): Promise<{ sent: boolean; debugOtp?: string }> => {
+  const res = await apiClient.post<ApiResponse<{ sent: boolean; debugOtp?: string }>>(
+    '/users/phone-otp/send',
+    { phone, countryCode }
+  );
+  return res.data.data || { sent: true };
+};
+
+/**
+ * Verify 6-digit mobile OTP
+ */
+export const verifyPhoneOtpApi = async (
+  phone: string,
+  countryCode: string,
+  otp: string
+): Promise<{ verified: boolean }> => {
+  const res = await apiClient.post<ApiResponse<{ verified: boolean }>>(
+    '/users/phone-otp/verify',
+    { phone, countryCode, otp }
+  );
+  return res.data.data || { verified: true };
+};
+

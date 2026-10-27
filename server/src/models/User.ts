@@ -10,6 +10,10 @@ export interface IUser {
   bio?: string;
   location?: string;
   yearlyGoal?: number;
+  age?: number;
+  phone?: string;
+  phoneCountry?: string;
+  phoneVerified?: boolean;
   refreshToken?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -69,6 +73,23 @@ const userSchema = new Schema<IUserDocument>(
       default: 100,
       min: [1, 'Yearly goal must be at least 1'],
       max: [10000, 'Yearly goal cannot exceed 10000'],
+    },
+    age: {
+      type: Number,
+      min: [1, 'Age must be at least 1'],
+      max: [120, 'Age cannot exceed 120'],
+    },
+    phone: {
+      type: String,
+      default: '',
+    },
+    phoneCountry: {
+      type: String,
+      default: 'IN',
+    },
+    phoneVerified: {
+      type: Boolean,
+      default: false,
     },
     refreshToken: {
       type: String,

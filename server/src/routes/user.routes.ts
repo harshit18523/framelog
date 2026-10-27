@@ -8,6 +8,9 @@ import {
   getFollowers,
   getFollowing,
   updateYearlyGoal,
+  updateUserProfile,
+  sendPhoneOtp,
+  verifyPhoneOtp,
 } from '../controllers/user.controller.js';
 
 const router = Router();
@@ -17,6 +20,13 @@ router.use(authenticate);
 
 // Update yearly movie goal for authenticated user
 router.patch('/goal', updateYearlyGoal);
+
+// Update user profile details
+router.put('/profile', updateUserProfile);
+
+// Mobile OTP verification routes
+router.post('/phone-otp/send', sendPhoneOtp);
+router.post('/phone-otp/verify', verifyPhoneOtp);
 
 // Search users by query
 router.get('/search', searchUsers);

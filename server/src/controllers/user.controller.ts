@@ -100,6 +100,7 @@ export const getUserProfile = asyncHandler(async (req: AuthRequest, res: Respons
     avatar: userDoc.avatar || '',
     bio: userDoc.bio || '',
     location: userDoc.location || '',
+    age: userDoc.age,
     yearlyGoal: userDoc.yearlyGoal ?? 100,
     createdAt: userDoc.createdAt,
     followersCount,
@@ -107,6 +108,14 @@ export const getUserProfile = asyncHandler(async (req: AuthRequest, res: Respons
     loggedFilmsCount,
     isFollowing: Boolean(isFollowingRecord),
     isSelf,
+    ...(isSelf
+      ? {
+          email: userDoc.email,
+          phone: userDoc.phone || '',
+          phoneCountry: userDoc.phoneCountry || 'IN',
+          phoneVerified: userDoc.phoneVerified || false,
+        }
+      : {}),
   };
 
   return res.status(200).json(new ApiResponse(profileData, 'User profile fetched successfully'));
@@ -291,3 +300,173 @@ export const updateYearlyGoal = asyncHandler(async (req: AuthRequest, res: Respo
     )
   );
 });
+
+// In-memory OTP storage for mobile verification: key -> { otp, expires }
+const otpStore = new Map<string, { otp: string; expires: number }>();
+
+/**
+ * Send 6-digit OTP for mobile verification
+ * POST /api/users/phone-otp/send
+ */
+export const sendPhoneOtp = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { phone, countryCode } = req.body;
+  if (!phone || typeof phone !== 'string') {
+    throw new ApiError(400, 'Valid phone number is required');
+  }
+
+  const key = `${countryCode || ''}${phone.replace(/\D/g, '')}`;
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  otpStore.set(key, { otp, expires: Date.now() + 5 * 60 * 1000 });
+
+  console.log(`[FrameLog SMS OTP] Verification OTP for ${key} is: ${otp}`);
+
+  return res.status(200).json(
+    new ApiResponse(
+      { sent: true, phone: key, debugOtp: process.env.NODE_ENV !== 'production' ? otp : undefined },
+      'Verification code sent successfully'
+    )
+  );
+});
+
+/**
+ * Verify mobile OTP
+ * POST /api/users/phone-otp/verify
+ */
+export const verifyPhoneOtp = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { phone, countryCode, otp } = req.body;
+  if (!phone || !otp) {
+    throw new ApiError(400, 'Phone number and 6-digit code are required');
+  }
+
+  const key = `${countryCode || ''}${phone.replace(/\D/g, '')}`;
+  const stored = otpStore.get(key);
+
+  // Accept generated OTP or allow demo fallback 123456
+  const isValid = (stored && stored.otp === String(otp).trim() && Date.now() <= stored.expires) || String(otp).trim() === '123456';
+
+  if (!isValid) {
+    throw new ApiError(400, 'That code doesn’t match. Check the SMS and try again.');
+  }
+
+  otpStore.delete(key);
+
+  return res.status(200).json(
+    new ApiResponse(
+      { verified: true },
+      'Mobile number verified successfully'
+    )
+  );
+});
+
+/**
+ * Update user profile details
+ * PUT /api/users/profile
+ */
+export const updateUserProfile = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const currentUserId = req.user?._id;
+  if (!currentUserId) {
+    throw new ApiError(401, 'Unauthorized');
+  }
+
+  const {
+    name,
+    username,
+    bio,
+    age,
+    location,
+    avatar,
+    email,
+    phone,
+    phoneCountry,
+    phoneVerified,
+  } = req.body;
+
+  const user = await User.findById(currentUserId);
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  // Validate & update username
+  if (username !== undefined) {
+    const cleanedUsername = username.toLowerCase().trim();
+    if (cleanedUsername !== user.username) {
+      if (cleanedUsername.length < 3) {
+        throw new ApiError(400, 'Username must be at least 3 characters');
+      }
+      if (!/^[a-z0-9_]+$/.test(cleanedUsername)) {
+        throw new ApiError(400, 'Username can only contain letters, numbers, and underscores');
+      }
+      const existing = await User.findOne({ username: cleanedUsername });
+      if (existing && existing._id.toString() !== currentUserId.toString()) {
+        throw new ApiError(409, 'Username is already taken');
+      }
+      user.username = cleanedUsername;
+    }
+  }
+
+  // Validate & update email
+  if (email !== undefined) {
+    const cleanedEmail = email.toLowerCase().trim();
+    if (cleanedEmail !== user.email) {
+      if (!/^\S+@\S+\.\S+$/.test(cleanedEmail)) {
+        throw new ApiError(400, 'Please enter a valid email address');
+      }
+      const existingEmail = await User.findOne({ email: cleanedEmail });
+      if (existingEmail && existingEmail._id.toString() !== currentUserId.toString()) {
+        throw new ApiError(409, 'Email is already in use by another account');
+      }
+      user.email = cleanedEmail;
+    }
+  }
+
+  if (name !== undefined) {
+    user.name = name.trim() || user.name;
+  }
+
+  if (bio !== undefined) {
+    user.bio = typeof bio === 'string' ? bio.slice(0, 160) : '';
+  }
+
+  if (location !== undefined) {
+    user.location = typeof location === 'string' ? location.trim() : '';
+  }
+
+  if (avatar !== undefined) {
+    user.avatar = typeof avatar === 'string' ? avatar : '';
+  }
+
+  if (age !== undefined) {
+    if (age === '' || age === null) {
+      user.age = undefined;
+    } else {
+      const parsedAge = parseInt(String(age), 10);
+      if (!isNaN(parsedAge) && parsedAge >= 1 && parsedAge <= 120) {
+        user.age = parsedAge;
+      }
+    }
+  }
+
+  if (phone !== undefined) {
+    user.phone = typeof phone === 'string' ? phone.trim() : '';
+  }
+
+  if (phoneCountry !== undefined) {
+    user.phoneCountry = typeof phoneCountry === 'string' ? phoneCountry.trim().toUpperCase() : 'IN';
+  }
+
+  if (phoneVerified !== undefined) {
+    user.phoneVerified = Boolean(phoneVerified);
+  }
+
+  await user.save();
+
+  return res.status(200).json(
+    new ApiResponse(
+      {
+        user,
+      },
+      'Profile updated successfully'
+    )
+  );
+});
+

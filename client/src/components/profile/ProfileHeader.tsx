@@ -6,6 +6,7 @@ import {
   UserCheckIcon,
   UserPlusIcon,
   Loader2Icon,
+  PencilIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { currentUser } from '../../data/users';
@@ -26,6 +27,7 @@ export interface ProfileHeaderProps {
   followLoading?: boolean;
   onMessage?: () => void;
   entriesCount?: number;
+  onEditProfile?: () => void;
 }
 
 export function ProfileHeader({
@@ -38,6 +40,7 @@ export function ProfileHeader({
   followLoading = false,
   onMessage,
   entriesCount,
+  onEditProfile,
 }: ProfileHeaderProps) {
   const { user } = useAuth();
   const { entries } = useLibrary();
@@ -78,7 +81,8 @@ export function ProfileHeader({
 
           <div className="mt-5 flex items-center gap-2">
             {isSelf ? (
-              <Button variant="secondary" size="sm">
+              <Button variant="secondary" size="sm" onClick={onEditProfile} className="gap-1.5">
+                <PencilIcon size={13} />
                 Edit profile
               </Button>
             ) : (

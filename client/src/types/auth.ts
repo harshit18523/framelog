@@ -8,6 +8,10 @@ export interface AuthUser {
   bio?: string;
   location?: string;
   yearlyGoal?: number;
+  age?: number;
+  phone?: string;
+  phoneCountry?: string;
+  phoneVerified?: boolean;
   createdAt?: string;
   updatedAt?: string;
   // Computed fields for UI compatibility
@@ -27,6 +31,10 @@ export interface AuthResponseData {
     bio?: string;
     location?: string;
     yearlyGoal?: number;
+    age?: number;
+    phone?: string;
+    phoneCountry?: string;
+    phoneVerified?: boolean;
     createdAt?: string;
     updatedAt?: string;
   };

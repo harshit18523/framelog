@@ -6,6 +6,7 @@ import { DiaryTimeline } from '../components/diary/DiaryTimeline';
 import { Poster } from '../components/film/Poster';
 import { ProfileFilmsGrid } from '../components/profile/ProfileFilmsGrid';
 import { ProfileHeader } from '../components/profile/ProfileHeader';
+import { EditProfileDialog } from '../components/profile/EditProfileDialog';
 import { ProfileLists } from '../components/profile/ProfileLists';
 import { ProfileReviews } from '../components/profile/ProfileReviews';
 import { ButtonLink } from '../components/ui/Button';
@@ -38,6 +39,7 @@ export function Profile() {
   const [loading, setLoading] = useState(true);
   const [targetEntries, setTargetEntries] = useState<DiaryEntry[]>([]);
   const [followLoading, setFollowLoading] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const uniqueFilmIds = React.useMemo(() => {
     const ids = new Set<string>();
@@ -179,6 +181,7 @@ export function Profile() {
         followLoading={followLoading}
         onMessage={handleMessage}
         entriesCount={isViewingOtherUser ? new Set(displayEntries.map((e) => e.filmId)).size : uniqueFilmIds.size}
+        onEditProfile={() => setEditOpen(true)}
       />
 
       {favoriteFilms.length > 0 && !isViewingOtherUser && (
@@ -278,6 +281,13 @@ export function Profile() {
           )
         )}
       </div>
+
+      <EditProfileDialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        profile={profile}
+        onProfileUpdated={(updated) => setProfile(updated)}
+      />
     </div>
   );
 }
