@@ -11,16 +11,18 @@ import {
   CheckIcon,
   CheckCheckIcon,
   FilmIcon,
+  WifiIcon,
+  WifiOffIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
+import { useSocket } from '../contexts/SocketContext';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import {
   getConversationsApi,
   getConversationMessagesApi,
-  sendMessageApi,
   markConversationReadApi,
   getOrCreateConversationApi,
   ConversationItem,
@@ -28,9 +30,108 @@ import {
 } from '../api/chats.api';
 import { searchUsersApi, UserSearchResult } from '../api/users.api';
 import { formatUserForUi } from '../utils/user';
+/**
+ * Safely extracts a string user ID from any message structure,
+ * whether `sender` is an object, a string ID, or `senderId` is provided.
+ */
+export const getMessageSenderId = (msg: any): string => {
+  if (!msg) return '';
+
+  // 1. If sender is a string ID
+  if (typeof msg.sender === 'string') {
+    return msg.sender.trim();
+  }
+
+  // 2. If sender is a populated user object
+  if (msg.sender && typeof msg.sender === 'object') {
+    const id = msg.sender.id || msg.sender._id || msg.sender.userId;
+    if (id) return String(id).trim();
+  }
+
+  // 3. If senderId is provided (string, object, or ObjectId)
+  if (typeof msg.senderId === 'string') {
+    return msg.senderId.trim();
+  }
+  if (msg.senderId && typeof msg.senderId === 'object') {
+    const id =
+      msg.senderId.id ||
+      msg.senderId._id ||
+      (typeof msg.senderId.toString === 'function' && msg.senderId.toString() !== '[object Object]'
+        ? msg.senderId.toString()
+        : '');
+    if (id) return String(id).trim();
+  }
+
+  // 4. Other fallback fields
+  if (typeof msg.userId === 'string') return msg.userId.trim();
+  if (typeof msg.from === 'string') return msg.from.trim();
+
+  return '';
+};
+
+/**
+ * Accurately determines if a message belongs to the current logged-in user.
+ * Prioritizes client-side ID comparison over server room-broadcast flags.
+ */
+export const checkIsMyMessage = (
+  msg: any,
+  myUserId?: string | null,
+  currentUsername?: string | null,
+  otherUserId?: string | null
+): boolean => {
+  if (!msg) return false;
+
+  // 1. Locally generated optimistic message (temp-*) is ALWAYS mine
+  const msgId = String(msg.id || msg._id || '');
+  if (msgId.startsWith('temp-')) {
+    return true;
+  }
+
+  // 2. Extract sender ID
+  const senderId = getMessageSenderId(msg);
+  const normalizedMyId = String(myUserId || '').trim().toLowerCase();
+
+  // 3. Direct ID comparison with current logged-in user
+  if (senderId && normalizedMyId) {
+    return senderId.toLowerCase() === normalizedMyId;
+  }
+
+  // 4. If sender ID matches other participant's ID, it is definitely NOT mine
+  const normalizedOtherId = String(otherUserId || '').trim().toLowerCase();
+  if (senderId && normalizedOtherId && senderId.toLowerCase() === normalizedOtherId) {
+    return false;
+  }
+
+  // 5. Fallback to username matching if sender object contains username
+  const senderUsername =
+    msg.sender && typeof msg.sender === 'object' && typeof msg.sender.username === 'string'
+      ? msg.sender.username.trim().toLowerCase()
+      : '';
+  const normalizedMyUsername = String(currentUsername || '').trim().toLowerCase();
+  if (senderUsername && normalizedMyUsername) {
+    return senderUsername === normalizedMyUsername;
+  }
+
+  // 6. Last-resort fallback to msg.isMine if explicit boolean and sender ID couldn't be extracted
+  if (!senderId && typeof msg.isMine === 'boolean') {
+    return msg.isMine;
+  }
+
+  return false;
+};
 
 export function Chats() {
   const { user: authUser } = useAuth();
+  const {
+    socket,
+    isConnected,
+    joinConversation,
+    leaveConversation,
+    sendMessage: socketSendMessage,
+    sendTyping,
+    markAsRead,
+  } = useSocket();
+
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedId = searchParams.get('id');
 
@@ -44,6 +145,11 @@ export function Chats() {
   const [sending, setSending] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
 
+  // Typing indicator states
+  const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
+  const otherUserTypingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const myTypingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // New Chat modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalQuery, setModalQuery] = useState('');
@@ -53,12 +159,41 @@ export function Chats() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const myUserId = String(
+    authUser?.id || (authUser as any)?._id || (authUser as any)?.userId || ''
+  ).trim();
+
+  const activeConversation =
+    conversations.find((c) => (c.id && c.id === activeId) || (c._id && c._id === activeId)) ||
+    currentConversation ||
+    null;
+
+  const otherUser =
+    activeConversation?.otherUser ||
+    activeConversation?.participants?.find((p: any) => {
+      const pid = String(p?.id || p?._id || '').trim();
+      return pid && myUserId && pid.toLowerCase() !== myUserId.toLowerCase();
+    }) ||
+    null;
+
+  const otherUserId = String(
+    otherUser?.id || otherUser?._id || (otherUser as any)?.userId || ''
+  ).trim();
+
+  // Helper to reliably check if a message belongs to the current user
+  const isMyMessage = useCallback(
+    (msg: any): boolean => {
+      return checkIsMyMessage(msg, myUserId, authUser?.username, otherUserId);
+    },
+    [myUserId, authUser?.username, otherUserId]
+  );
+
   // Scroll to bottom on new messages
   const scrollToBottom = (smooth = true) => {
     messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
   };
 
-  // 1. Fetch conversations list
+  // 1. Initial fetch for conversations list
   const fetchConversations = useCallback(async (silent = false) => {
     if (!silent) setLoadingConversations(true);
     try {
@@ -75,15 +210,7 @@ export function Chats() {
     fetchConversations();
   }, [fetchConversations]);
 
-  // Periodic polling for conversations (every 5 seconds)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchConversations(true);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [fetchConversations]);
-
-  // 2. Fetch messages for active conversation
+  // 2. Fetch messages for active conversation on selection
   const fetchMessages = useCallback(async (convId: string, silent = false) => {
     if (!convId) return;
     if (!silent) setLoadingMessages(true);
@@ -93,7 +220,7 @@ export function Chats() {
       if (res.conversation) {
         setCurrentConversation(res.conversation as any);
       }
-      // Mark as read in local state
+      // Mark as read in local list state
       setConversations((prev) =>
         prev.map((c) =>
           c.id === convId || c._id === convId ? { ...c, unreadCount: 0 } : c
@@ -107,19 +234,20 @@ export function Chats() {
     }
   }, []);
 
-  // 3. Central conversation selection handler (ensures URL and state stay in sync)
+  // 3. Central conversation selection handler
   const handleSelectConversation = useCallback(
     (convId: string) => {
       if (!convId) return;
       setActiveId(convId);
       setSearchParams({ id: convId }, { replace: true });
       fetchMessages(convId);
+      markAsRead(convId);
       markConversationReadApi(convId).catch(() => {});
     },
-    [setSearchParams, fetchMessages]
+    [setSearchParams, fetchMessages, markAsRead]
   );
 
-  // 4. Sync when URL query parameter changes (initial load, back/forward, external navigation)
+  // 4. Sync when URL query parameter changes
   useEffect(() => {
     if (requestedId) {
       setActiveId(requestedId);
@@ -127,38 +255,217 @@ export function Chats() {
     }
   }, [requestedId, fetchMessages]);
 
-  // Periodic polling for active conversation messages (every 2.5 seconds)
+  // 5. Join active conversation room on Socket.IO and leave on switch
   useEffect(() => {
     if (!activeId) return;
-    const interval = setInterval(() => {
-      fetchMessages(activeId, true);
-    }, 2500);
-    return () => clearInterval(interval);
-  }, [activeId, fetchMessages]);
+    joinConversation(activeId);
+    markAsRead(activeId);
+
+    return () => {
+      leaveConversation(activeId);
+      setIsOtherUserTyping(false);
+    };
+  }, [activeId, joinConversation, leaveConversation, markAsRead]);
+
+  // 6. Real-time Socket Event: incoming new messages
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleIncomingMessage = (msg: ChatMessage) => {
+      if (!msg) return;
+
+      // If message belongs to currently active conversation
+      if (msg.conversationId === activeId) {
+        setMessages((prev) => {
+          // Avoid duplicate additions (e.g. matching temp optimistic IDs or real IDs)
+          const alreadyExists = prev.some(
+            (m) =>
+              (msg.id && m.id === msg.id) ||
+              (msg._id && m._id === msg._id) ||
+              (m.id?.startsWith('temp-') && m.content === msg.content)
+          );
+
+          if (alreadyExists) {
+            return prev.map((m) =>
+              m.id?.startsWith('temp-') && m.content === msg.content ? msg : m
+            );
+          }
+
+          return [...prev, msg];
+        });
+
+        scrollToBottom(true);
+
+        // If from another user in the active window, mark read
+        const senderId = getMessageSenderId(msg);
+        const isFromOther =
+          senderId && myUserId
+            ? senderId.toLowerCase() !== myUserId.toLowerCase()
+            : !checkIsMyMessage(msg, myUserId, authUser?.username, otherUserId);
+
+        if (isFromOther) {
+          markAsRead(activeId);
+          markConversationReadApi(activeId).catch(() => {});
+        }
+      }
+    };
+
+    socket.on('new_message', handleIncomingMessage);
+
+    return () => {
+      socket.off('new_message', handleIncomingMessage);
+    };
+  }, [socket, activeId, myUserId, authUser?.username, otherUserId, markAsRead]);
+
+  // 7. Real-time Socket Event: conversation updated (last message & order)
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleConversationUpdated = (data: {
+      conversationId: string;
+      lastMessage: { content: string; senderId: string; createdAt: string };
+      updatedAt: string;
+    }) => {
+      setConversations((prev) => {
+        const index = prev.findIndex(
+          (c) => c.id === data.conversationId || c._id === data.conversationId
+        );
+
+        if (index !== -1) {
+          const existingConv = prev[index];
+          const isCurrentlyActive =
+            existingConv.id === activeId || existingConv._id === activeId;
+          const lastSenderId = String(data.lastMessage?.senderId || '').trim().toLowerCase();
+          const isFromMe = Boolean(
+            lastSenderId && myUserId && lastSenderId === myUserId.toLowerCase()
+          );
+
+          const updatedConv = {
+            ...existingConv,
+            lastMessage: data.lastMessage,
+            unreadCount:
+              isCurrentlyActive || isFromMe ? 0 : (existingConv.unreadCount || 0) + 1,
+            updatedAt: data.updatedAt,
+          };
+
+          // Reorder: bring latest updated conversation to top
+          return [updatedConv, ...prev.filter((_, i) => i !== index)];
+        } else {
+          // New conversation created by other user, re-fetch list to include it
+          fetchConversations(true);
+          return prev;
+        }
+      });
+    };
+
+    socket.on('conversation_updated', handleConversationUpdated);
+
+    return () => {
+      socket.off('conversation_updated', handleConversationUpdated);
+    };
+  }, [socket, activeId, myUserId, fetchConversations]);
+
+  // 8. Real-time Socket Event: user typing indicator
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUserTyping = (data: {
+      conversationId: string;
+      userId: string;
+      username: string;
+      isTyping: boolean;
+    }) => {
+      if (data.conversationId === activeId && data.userId !== myUserId) {
+        setIsOtherUserTyping(data.isTyping);
+
+        if (otherUserTypingTimerRef.current) {
+          clearTimeout(otherUserTypingTimerRef.current);
+        }
+
+        if (data.isTyping) {
+          otherUserTypingTimerRef.current = setTimeout(() => {
+            setIsOtherUserTyping(false);
+          }, 3000);
+        }
+      }
+    };
+
+    socket.on('user_typing', handleUserTyping);
+
+    return () => {
+      socket.off('user_typing', handleUserTyping);
+      if (otherUserTypingTimerRef.current) {
+        clearTimeout(otherUserTypingTimerRef.current);
+      }
+    };
+  }, [socket, activeId, myUserId]);
+
+  // 9. Real-time Socket Event: messages read receipts
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleMessagesRead = (data: { conversationId: string; readBy: string }) => {
+      if (data.conversationId === activeId) {
+        setMessages((prev) =>
+          prev.map((m) => {
+            const isMine = isMyMessage(m);
+            return isMine ? { ...m, read: true } : m;
+          })
+        );
+      }
+    };
+
+    socket.on('messages_read', handleMessagesRead);
+
+    return () => {
+      socket.off('messages_read', handleMessagesRead);
+    };
+  }, [socket, activeId, myUserId]);
 
   // Auto-scroll when messages update
   useEffect(() => {
     scrollToBottom(false);
   }, [messages.length]);
 
-  // 5. Send message handler
+  // 10. Handle textarea typing with debounced socket typing indicator
+  const handleMessageInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessageText(e.target.value);
+
+    if (activeId) {
+      sendTyping(activeId, true);
+
+      if (myTypingTimerRef.current) {
+        clearTimeout(myTypingTimerRef.current);
+      }
+
+      myTypingTimerRef.current = setTimeout(() => {
+        sendTyping(activeId, false);
+      }, 2000);
+    }
+  };
+
+  // 11. Send message handler via Socket.IO (with optimistic update)
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const text = messageText.trim();
     if (!text || !activeId || sending) return;
 
+    // Reset typing status immediately upon sending
+    if (myTypingTimerRef.current) clearTimeout(myTypingTimerRef.current);
+    sendTyping(activeId, false);
+
     setMessageText('');
     setSending(true);
 
-    // Optimistic message
+    const senderId = myUserId || 'me';
     const tempId = `temp-${Date.now()}`;
     const optimisticMessage: ChatMessage = {
       id: tempId,
       _id: tempId,
       conversationId: activeId,
       sender: {
-        id: authUser?.id || 'me',
-        _id: authUser?.id || 'me',
+        id: senderId,
+        _id: senderId,
         name: authUser?.name || 'Me',
         username: authUser?.username || 'me',
         avatar: authUser?.avatar,
@@ -169,32 +476,39 @@ export function Chats() {
       createdAt: new Date().toISOString(),
     };
 
+    // Optimistically add to UI
     setMessages((prev) => [...prev, optimisticMessage]);
     scrollToBottom(true);
 
     try {
-      const sentMsg = await sendMessageApi(activeId, text);
-      // Replace optimistic message
+      // Send via Socket.IO (automatic fallback to REST if disconnected)
+      const sentMsg = await socketSendMessage(activeId, text);
+
+      // Replace optimistic message with server-confirmed message
       setMessages((prev) =>
-        prev.map((m) => (m.id === tempId ? sentMsg : m))
+        prev.map((m) => (m.id === tempId ? { ...sentMsg, isMine: true } : m))
       );
-      // Update conversation in list
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === activeId || c._id === activeId
-            ? {
-                ...c,
-                lastMessage: {
-                  content: text,
-                  senderId: authUser?.id || 'me',
-                  createdAt: sentMsg.createdAt,
-                },
-                updatedAt: sentMsg.createdAt,
-              }
-            : c
-        )
-      );
+
+      // Update active conversation in list immediately
+      setConversations((prev) => {
+        const index = prev.findIndex((c) => c.id === activeId || c._id === activeId);
+        if (index !== -1) {
+          const conv = prev[index];
+          const updated = {
+            ...conv,
+            lastMessage: {
+              content: text,
+              senderId,
+              createdAt: sentMsg.createdAt,
+            },
+            updatedAt: sentMsg.createdAt,
+          };
+          return [updated, ...prev.filter((_, i) => i !== index)];
+        }
+        return prev;
+      });
     } catch (err: any) {
+      console.error('[Chats] Failed to send message:', err);
       toast.error(err.response?.data?.message || err.message || 'Failed to send message');
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setMessageText(text);
@@ -212,7 +526,7 @@ export function Chats() {
     }
   };
 
-  // 6. New Chat modal user search with debounce
+  // 12. New Chat modal user search with debounce
   useEffect(() => {
     const q = modalQuery.trim();
     if (!q) {
@@ -258,12 +572,6 @@ export function Chats() {
     }
   };
 
-  const activeConversation =
-    conversations.find((c) => (c.id && c.id === activeId) || (c._id && c._id === activeId)) ||
-    currentConversation ||
-    null;
-  const otherUser = activeConversation?.otherUser;
-
   const filteredConversations = conversations.filter((c) => {
     if (!searchFilter.trim()) return true;
     const name = c.otherUser?.name || '';
@@ -295,18 +603,28 @@ export function Chats() {
   return (
     <div className="mx-auto flex h-[calc(100vh-4.5rem)] w-full max-w-[1520px] overflow-hidden p-2 sm:p-4 lg:p-6">
       <div className="flex w-full overflow-hidden rounded-2xl border border-line bg-surface/80 shadow-2xl backdrop-blur-xl">
-        
         {/* ================= LEFT PANEL: Conversation List ================= */}
         <aside
           className={`flex w-full flex-col border-r border-line bg-surface-raised/40 lg:w-80 xl:w-96 ${
             activeId ? 'hidden lg:flex' : 'flex'
           }`}
         >
-          {/* Top Header */}
+          {/* Top Header with live socket indicator */}
           <div className="flex h-16 shrink-0 items-center justify-between border-b border-line px-4">
             <div className="flex items-center gap-2.5">
               <MessageSquareIcon size={19} className="text-gold" />
               <h1 className="text-base font-semibold text-fg">Messages</h1>
+              <span
+                title={isConnected ? 'Real-time connected' : 'Connecting real-time...'}
+                className="inline-flex items-center gap-1 rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-fg-subtle ring-1 ring-inset ring-line"
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    isConnected ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]' : 'bg-amber-500'
+                  }`}
+                />
+                {isConnected ? 'Live' : 'Connecting'}
+              </span>
             </div>
             <Button
               size="sm"
@@ -440,15 +758,41 @@ export function Chats() {
                   >
                     <Avatar user={formatUserForUi(otherUser) as any} size="sm" />
                     <div>
-                      <h2 className="text-sm font-semibold text-fg group-hover:text-gold transition-colors">
-                        {otherUser.name}
-                      </h2>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-sm font-semibold text-fg group-hover:text-gold transition-colors">
+                          {otherUser.name}
+                        </h2>
+                        {isConnected ? (
+                          <span
+                            title="Connected via WebSocket"
+                            className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]"
+                          />
+                        ) : (
+                          <span
+                            title="Reconnecting..."
+                            className="h-1.5 w-1.5 rounded-full bg-amber-500"
+                          />
+                        )}
+                      </div>
                       <p className="text-[11px] text-fg-subtle">@{otherUser.username}</p>
                     </div>
                   </Link>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-fg-subtle">
+                    {isConnected ? (
+                      <>
+                        <WifiIcon size={13} className="text-emerald-500" />
+                        <span>Live chat</span>
+                      </>
+                    ) : (
+                      <>
+                        <WifiOffIcon size={13} className="text-amber-500 animate-pulse" />
+                        <span>Reconnecting</span>
+                      </>
+                    )}
+                  </span>
                   <Link
                     to={`/app/profile/${otherUser.username}`}
                     className="rounded-lg px-2.5 py-1 text-xs text-fg-subtle hover:bg-white/[0.06] hover:text-gold transition-colors"
@@ -472,8 +816,10 @@ export function Chats() {
                       new Date(prevMsg.createdAt).toDateString() !==
                         new Date(msg.createdAt).toDateString();
 
+                    const isMine = isMyMessage(msg);
+
                     return (
-                      <React.Fragment key={msg.id || msg._id}>
+                      <React.Fragment key={msg.id || msg._id || `msg-${index}`}>
                         {showDateHeader && (
                           <div className="my-4 flex items-center justify-center">
                             <span className="rounded-full bg-white/[0.06] px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-fg-subtle ring-1 ring-inset ring-line">
@@ -484,12 +830,18 @@ export function Chats() {
 
                         <div
                           className={`flex items-end gap-2 ${
-                            msg.isMine ? 'justify-end' : 'justify-start'
+                            isMine ? 'justify-end' : 'justify-start'
                           }`}
                         >
-                          {!msg.isMine && (
+                          {!isMine && (
                             <Avatar
-                              user={formatUserForUi(msg.sender) as any}
+                              user={
+                                formatUserForUi(
+                                  msg.sender && typeof msg.sender === 'object' && (msg.sender.name || msg.sender.avatar)
+                                    ? (msg.sender as any)
+                                    : otherUser || undefined
+                                ) as any
+                              }
                               size="xs"
                               className="mb-1"
                             />
@@ -497,7 +849,7 @@ export function Chats() {
 
                           <div
                             className={`group relative max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm transition-all ${
-                              msg.isMine
+                              isMine
                                 ? 'rounded-tr-xs bg-gradient-to-br from-amber-600/35 to-gold/25 text-fg ring-1 ring-gold/40'
                                 : 'rounded-tl-xs bg-surface-raised/90 text-fg ring-1 ring-line'
                             }`}
@@ -505,11 +857,11 @@ export function Chats() {
                             <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                             <div
                               className={`mt-1 flex items-center gap-1 text-[10px] ${
-                                msg.isMine ? 'justify-end text-gold/80' : 'text-fg-subtle'
+                                isMine ? 'justify-end text-gold/80' : 'text-fg-subtle'
                               }`}
                             >
                               <span>{formatMessageTime(msg.createdAt)}</span>
-                              {msg.isMine && (
+                              {isMine && (
                                 <span title={msg.read ? 'Read' : 'Delivered'}>
                                   {msg.read ? (
                                     <CheckCheckIcon size={12} className="text-gold" />
@@ -540,17 +892,26 @@ export function Chats() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Message Input Box */}
+              {/* Message Input Box with Typing Indicator */}
               <div className="border-t border-line bg-surface/70 p-3 sm:p-4 backdrop-blur-md">
-                <form
-                  onSubmit={handleSendMessage}
-                  className="flex items-end gap-2"
-                >
+                {/* Live typing indicator from other user */}
+                {isOtherUserTyping && (
+                  <div className="mb-2 flex items-center gap-2 px-1 text-xs text-gold animate-fadeIn">
+                    <span className="flex gap-1 items-center">
+                      <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse delay-75" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-gold animate-pulse delay-150" />
+                    </span>
+                    <span className="italic">{otherUser.name} is typing...</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSendMessage} className="flex items-end gap-2">
                   <textarea
                     ref={inputRef}
                     rows={1}
                     value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
+                    onChange={handleMessageInputChange}
                     onKeyDown={handleKeyDown}
                     placeholder={`Message ${otherUser.name}... (Press Enter to send)`}
                     className="max-h-32 min-h-[42px] flex-1 resize-none rounded-xl bg-white/[0.05] px-3.5 py-2.5 text-sm text-fg ring-1 ring-inset ring-line placeholder:text-fg-subtle focus:outline-none focus:ring-gold/50"

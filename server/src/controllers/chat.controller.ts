@@ -7,6 +7,7 @@ import { User } from '../models/User.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { ApiError } from '../utils/ApiError.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import { emitNewMessage, emitMessagesRead } from '../socket/index.js';
 
 // Helper to reliably extract string id from either ObjectId or populated user document
 const getParticipantId = (p: any): string => {
@@ -333,7 +334,7 @@ export const sendMessage = asyncHandler(async (req: AuthRequest, res: Response) 
 
   const sender = populatedMessage?.senderId as any;
 
-  const formattedMessage = {
+  const messagePayload = {
     id: messageDoc._id.toString(),
     _id: messageDoc._id.toString(),
     conversationId: messageDoc.conversationId.toString(),
@@ -346,11 +347,15 @@ export const sendMessage = asyncHandler(async (req: AuthRequest, res: Response) 
     },
     content: messageDoc.content,
     read: false,
-    isMine: true,
     createdAt: messageDoc.createdAt,
   };
 
-  return res.status(201).json(new ApiResponse(formattedMessage, 'Message sent successfully'));
+  // Broadcast neutral message to Socket.IO room & participants
+  emitNewMessage(messagePayload, conversation.participants);
+
+  return res
+    .status(201)
+    .json(new ApiResponse({ ...messagePayload, isMine: true }, 'Message sent successfully'));
 });
 
 /**
@@ -382,5 +387,9 @@ export const markConversationAsRead = asyncHandler(async (req: AuthRequest, res:
     }
   );
 
+  // Notify active room participants that messages have been read
+  emitMessagesRead(conversationId, currentUserId.toString());
+
   return res.status(200).json(new ApiResponse({ success: true }, 'Messages marked as read'));
 });
+

@@ -8,18 +8,25 @@ const __dirname = path.dirname(__filename);
 // Robust dotenv configuration: load server/.env and root .env
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
+import http from 'http';
 import { createApp } from './app.js';
 import { connectDB, disconnectDB } from './config/db.js';
+import { initSocketServer } from './socket/index.js';
 
 const PORT = process.env.PORT || 5000;
 const app = createApp();
+const httpServer = http.createServer(app);
+
+// Initialize Socket.IO with the HTTP server
+initSocketServer(httpServer);
 
 const startServer = async () => {
   // Connect to MongoDB
   await connectDB();
 
-  const server = app.listen(PORT, () => {
+  const server = httpServer.listen(PORT, () => {
     console.log(`🎬 FrameLog Server running on http://localhost:${PORT}`);
+    console.log(`⚡ Socket.IO initialized on ws://localhost:${PORT}`);
     console.log(`🔐 Auth endpoints available at http://localhost:${PORT}/api/auth`);
     console.log(`🩺 Health check available at http://localhost:${PORT}/api/health`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);

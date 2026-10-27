@@ -29,16 +29,17 @@ export interface ChatMessage {
   id: string;
   _id: string;
   conversationId: string;
-  sender: {
-    id: string;
-    _id: string;
-    name: string;
-    username: string;
+  sender?: {
+    id?: string;
+    _id?: string;
+    name?: string;
+    username?: string;
     avatar?: string;
-  };
+  } | string;
+  senderId?: string | { id?: string; _id?: string };
   content: string;
   read: boolean;
-  isMine: boolean;
+  isMine?: boolean;
   createdAt: string;
 }
 
