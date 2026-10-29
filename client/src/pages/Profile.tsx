@@ -33,7 +33,13 @@ export function Profile() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const { user: authUser } = useAuth();
-  const { entries: myEntries, watched: myWatched, watchlist: myWatchlist, liked: myLiked } = useLibrary();
+  const {
+    entries: myEntries,
+    watched: myWatched,
+    watchlist: myWatchlist,
+    liked: myLiked,
+    lists: myLists,
+  } = useLibrary();
 
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -215,7 +221,7 @@ export function Profile() {
             },
             { id: 'diary', label: 'Diary', count: displayEntries.length },
             { id: 'reviews', label: 'Reviews', count: displayEntries.filter((e) => e.review).length },
-            { id: 'lists', label: 'Lists', count: 0 },
+            { id: 'lists', label: 'Lists', count: isViewingOtherUser ? 0 : myLists.length },
             { id: 'watchlist', label: 'Watchlist', count: isViewingOtherUser ? 0 : myWatchlist.length },
           ]}
         />

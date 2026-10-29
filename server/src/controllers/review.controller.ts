@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.middleware.js';
 import { DiaryEntry } from '../models/DiaryEntry.js';
 import { Follow } from '../models/Follow.js';
 import { ReviewComment } from '../models/ReviewComment.js';
+import { User } from '../models/User.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { ApiError } from '../utils/ApiError.js';
 import asyncHandler from '../utils/asyncHandler.js';
@@ -179,21 +180,6 @@ export const addReviewComment = asyncHandler(async (req: AuthRequest, res: Respo
     throw new ApiError(404, 'Review not found');
   }
 
-  // Authorization: must be review author or a friend (following/mutual)
-  const isAuthor = review.userId.toString() === currentUserId.toString();
-  if (!isAuthor) {
-    const isFriend = await Follow.findOne({
-      $or: [
-        { followerId: currentUserId, followingId: review.userId },
-        { followerId: review.userId, followingId: currentUserId },
-      ],
-    }).lean();
-
-    if (!isFriend) {
-      throw new ApiError(403, 'You must follow or be friends with the reviewer to comment');
-    }
-  }
-
   let validParentId: mongoose.Types.ObjectId | null = null;
   if (parentId && mongoose.isValidObjectId(parentId)) {
     const parentComment = await ReviewComment.findById(parentId);
@@ -269,3 +255,78 @@ export const deleteReviewComment = asyncHandler(async (req: AuthRequest, res: Re
 
   return res.status(200).json(new ApiResponse({ success: true }, 'Comment deleted successfully'));
 });
+
+/**
+ * Get ALL reviews for a specific film from every user (global)
+ * GET /api/reviews/films/:filmId/all
+ */
+export const getAllFilmReviews = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const currentUserId = req.user?._id;
+  const filmId = String(req.params.filmId || '').trim();
+
+  if (!currentUserId) {
+    throw new ApiError(401, 'Unauthorized');
+  }
+
+  if (!filmId) {
+    throw new ApiError(400, 'Film ID is required');
+  }
+
+  // Fetch all diary entries for this film that have a review text
+  const entries = await DiaryEntry.find({
+    filmId,
+    review: { $exists: true, $nin: ['', null] },
+  })
+    .populate('userId', '_id name username avatar bio')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  if (entries.length === 0) {
+    return res.status(200).json(new ApiResponse([], 'No reviews found'));
+  }
+
+  const reviewIds = entries.map((e) => e._id);
+
+  // Aggregate comment counts
+  const commentCounts = await ReviewComment.aggregate([
+    { $match: { reviewId: { $in: reviewIds } } },
+    { $group: { _id: '$reviewId', count: { $sum: 1 } } },
+  ]);
+
+  const countsMap = new Map<string, number>();
+  commentCounts.forEach((c) => {
+    countsMap.set(c._id.toString(), c.count);
+  });
+
+  const formattedReviews = entries
+    .filter((e) => e.userId)
+    .map((e) => {
+      const u = e.userId as any;
+      const reviewIdStr = e._id.toString();
+      const isCurrentUser = u._id.toString() === currentUserId.toString();
+      return {
+        id: reviewIdStr,
+        _id: reviewIdStr,
+        filmId: e.filmId,
+        isCurrentUser,
+        user: {
+          id: u._id.toString(),
+          _id: u._id.toString(),
+          name: u.name || 'User',
+          username: u.username || 'user',
+          avatar: u.avatar || '',
+          bio: u.bio || '',
+        },
+        rating: e.rating,
+        review: e.review,
+        liked: Boolean(e.liked),
+        rewatch: Boolean(e.rewatch),
+        date: e.date,
+        commentsCount: countsMap.get(reviewIdStr) || 0,
+        createdAt: e.createdAt,
+      };
+    });
+
+  return res.status(200).json(new ApiResponse(formattedReviews, 'All reviews fetched successfully'));
+});
+

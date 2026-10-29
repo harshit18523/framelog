@@ -19,6 +19,20 @@ import {
   likeFilmApi,
   unlikeFilmApi,
 } from '../api/library.api';
+import type {
+  UserList,
+  CreateListPayload,
+  UpdateListPayload,
+  AddFilmPayload,
+} from '../types/list';
+import {
+  getListsApi,
+  createListApi,
+  updateListApi,
+  deleteListApi,
+  addFilmToListApi,
+  removeFilmFromListApi,
+} from '../api/lists.api';
 
 type LogDialogState = {
   open: boolean;
@@ -32,6 +46,14 @@ type LibraryContextValue = {
   watchedItems: Array<{ id: string; filmId: string; film?: Partial<Film>; createdAt?: string }>;
   watchlist: string[];
   liked: string[];
+  lists: UserList[];
+  listsLoading: boolean;
+  refreshLists: () => Promise<UserList[]>;
+  createList: (payload: CreateListPayload) => Promise<UserList>;
+  updateList: (id: string, payload: UpdateListPayload) => Promise<UserList>;
+  deleteList: (id: string) => Promise<void>;
+  addFilmToList: (listId: string, film: AddFilmPayload) => Promise<UserList>;
+  removeFilmFromList: (listId: string, filmId: string) => Promise<UserList>;
   logDialog: LogDialogState;
   isWatched: (filmId: string) => boolean;
   ratingFor: (filmId: string) => number | undefined;
@@ -57,6 +79,8 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
   >([]);
   const [watchlist, setWatchlist] = useState<string[]>([]);
   const [liked, setLiked] = useState<string[]>([]);
+  const [lists, setLists] = useState<UserList[]>([]);
+  const [listsLoading, setListsLoading] = useState<boolean>(false);
 
   const [logDialog, setLogDialog] = useState<LogDialogState>({
     open: Boolean(screenInit.logOpen),
@@ -71,6 +95,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
       setWatchedItems([]);
       setWatchlist([]);
       setLiked([]);
+      setLists([]);
       return;
     }
 
@@ -78,7 +103,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
 
     const fetchLibrary = async () => {
       try {
-        const [diaryEntries, watchedData, watchlistData, likesData] = await Promise.all([
+        const [diaryEntries, watchedData, watchlistData, likesData, userLists] = await Promise.all([
           getDiaryEntriesApi().catch((err) => {
             console.error('[Library] Failed to load diary:', err);
             return [] as DiaryEntry[];
@@ -94,6 +119,10 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
           getLikesApi().catch((err) => {
             console.error('[Library] Failed to load likes:', err);
             return { filmIds: [] };
+          }),
+          getListsApi().catch((err) => {
+            console.error('[Library] Failed to load lists:', err);
+            return [] as UserList[];
           }),
         ]);
 
@@ -115,6 +144,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
         setWatchedItems(watchedData.items || []);
         setWatchlist(watchlistData.filmIds || []);
         setLiked(likesData.filmIds || []);
+        setLists(userLists);
       } catch (err) {
         console.error('[Library] Failed to fetch user library:', err);
       }
@@ -285,6 +315,49 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
 
   const closeLog = useCallback(() => setLogDialog((prev) => ({ ...prev, open: false })), []);
 
+  const refreshLists = useCallback(async (): Promise<UserList[]> => {
+    setListsLoading(true);
+    try {
+      const data = await getListsApi();
+      setLists(data);
+      return data;
+    } catch (err) {
+      console.error('[Library] Failed to refresh lists:', err);
+      return [];
+    } finally {
+      setListsLoading(false);
+    }
+  }, []);
+
+  const createList = useCallback(async (payload: CreateListPayload): Promise<UserList> => {
+    const newList = await createListApi(payload);
+    setLists((prev) => [newList, ...prev]);
+    return newList;
+  }, []);
+
+  const updateList = useCallback(async (id: string, payload: UpdateListPayload): Promise<UserList> => {
+    const updated = await updateListApi(id, payload);
+    setLists((prev) => prev.map((l) => (l.id === id || l._id === id ? updated : l)));
+    return updated;
+  }, []);
+
+  const deleteList = useCallback(async (id: string): Promise<void> => {
+    await deleteListApi(id);
+    setLists((prev) => prev.filter((l) => l.id !== id && l._id !== id));
+  }, []);
+
+  const addFilmToList = useCallback(async (listId: string, film: AddFilmPayload): Promise<UserList> => {
+    const updated = await addFilmToListApi(listId, film);
+    setLists((prev) => prev.map((l) => (l.id === listId || l._id === listId ? updated : l)));
+    return updated;
+  }, []);
+
+  const removeFilmFromList = useCallback(async (listId: string, filmId: string): Promise<UserList> => {
+    const updated = await removeFilmFromListApi(listId, filmId);
+    setLists((prev) => prev.map((l) => (l.id === listId || l._id === listId ? updated : l)));
+    return updated;
+  }, []);
+
   const value = useMemo<LibraryContextValue>(
     () => ({
       entries,
@@ -292,6 +365,14 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
       watchedItems,
       watchlist,
       liked,
+      lists,
+      listsLoading,
+      refreshLists,
+      createList,
+      updateList,
+      deleteList,
+      addFilmToList,
+      removeFilmFromList,
       logDialog,
       isWatched: (filmId) => watched.includes(filmId) || entries.some((e) => e.filmId === filmId),
       ratingFor: (filmId) => entries.find((e) => e.filmId === filmId && e.rating != null)?.rating,
@@ -309,6 +390,14 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
       watchedItems,
       watchlist,
       liked,
+      lists,
+      listsLoading,
+      refreshLists,
+      createList,
+      updateList,
+      deleteList,
+      addFilmToList,
+      removeFilmFromList,
       logDialog,
       addEntry,
       toggleWatched,

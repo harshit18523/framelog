@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticate } from '../middleware/auth.middleware.js';
 import {
   getFriendsFilmReviews,
+  getAllFilmReviews,
   getReviewComments,
   addReviewComment,
   deleteReviewComment,
@@ -14,6 +15,9 @@ router.use(authenticate);
 
 // Get friends' reviews for a film
 router.get('/films/:filmId/friends', getFriendsFilmReviews);
+
+// Get all reviews for a film
+router.get('/films/:filmId/all', getAllFilmReviews);
 
 // Get comments for a review
 router.get('/:reviewId/comments', getReviewComments);

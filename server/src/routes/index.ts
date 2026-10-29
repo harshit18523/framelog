@@ -10,6 +10,7 @@ import userRoutes from './user.routes.js';
 import chatRoutes from './chat.routes.js';
 import feedRoutes from './feed.routes.js';
 import reviewRoutes from './review.routes.js';
+import listRoutes from './list.routes.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 
 const router = Router();
@@ -36,11 +37,12 @@ router.use('/auth', authRoutes);
 // Films & TMDB endpoints
 router.use('/films', filmRoutes);
 
-// User library endpoints (Diary, Watched, Watchlist, Likes)
+// User library endpoints (Diary, Watched, Watchlist, Likes, Lists)
 router.use('/diary', diaryRoutes);
 router.use('/watched', watchedRoutes);
 router.use('/watchlist', watchlistRoutes);
 router.use('/likes', likesRoutes);
+router.use('/lists', listRoutes);
 
 // Social endpoints (Feed, Users, Follow, Chats, and Reviews)
 router.use('/feed', feedRoutes);

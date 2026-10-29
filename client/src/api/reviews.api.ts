@@ -14,6 +14,7 @@ export interface FriendReviewItem {
   id: string;
   _id: string;
   filmId: string;
+  isCurrentUser?: boolean;
   user: ReviewUser;
   rating?: number;
   review: string;
@@ -23,6 +24,8 @@ export interface FriendReviewItem {
   commentsCount: number;
   createdAt: string;
 }
+
+export type FilmReviewItem = FriendReviewItem;
 
 export interface ReviewCommentItem {
   id: string;
@@ -41,6 +44,14 @@ export interface ReviewCommentItem {
  */
 export const getFriendsFilmReviewsApi = async (filmId: string): Promise<FriendReviewItem[]> => {
   const res = await apiClient.get<ApiResponse<FriendReviewItem[]>>(`/reviews/films/${filmId}/friends`);
+  return res.data.data || [];
+};
+
+/**
+ * Fetch all reviews from every user for a specific film
+ */
+export const getAllFilmReviewsApi = async (filmId: string): Promise<FriendReviewItem[]> => {
+  const res = await apiClient.get<ApiResponse<FriendReviewItem[]>>(`/reviews/films/${filmId}/all`);
   return res.data.data || [];
 };
 

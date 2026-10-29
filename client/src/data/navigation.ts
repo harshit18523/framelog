@@ -12,6 +12,6 @@ export const appNavigation = [
   { id: 'discover', label: 'Discover', to: '/app/discover', icon: CompassIcon },
   { id: 'diary', label: 'Diary', to: '/app/diary', icon: BookOpenIcon },
   { id: 'chats', label: 'Chats', to: '/app/chats', icon: MessageSquareIcon },
-  { id: 'lists', label: 'Lists', to: '/app/profile?tab=lists', icon: LayersIcon },
+  { id: 'lists', label: 'Lists', to: '/app/lists', icon: LayersIcon },
   { id: 'profile', label: 'Profile', to: '/app/profile', icon: UserRoundIcon },
 ] as const;

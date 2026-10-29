@@ -1,16 +1,18 @@
-import React from 'react';
-import { BookmarkIcon, EyeIcon, HeartIcon, PenLineIcon } from 'lucide-react';
+import React, { useState } from 'react';
+import { BookmarkIcon, EyeIcon, HeartIcon, PenLineIcon, LayersIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLibrary } from '../../contexts/LibraryContext';
 import type { Film } from '../../types/film';
 import { Button } from '../ui/Button';
 import { RatingInput } from '../ui/RatingInput';
+import { AddToListDialog } from '../lists/AddToListDialog';
 
 type FilmActionPanelProps = {
   film: Film;
 };
 
 export function FilmActionPanel({ film }: FilmActionPanelProps) {
+  const [addToListOpen, setAddToListOpen] = useState(false);
   const { isWatched, watchlist, liked, ratingFor, toggleWatched, toggleWatchlist, toggleLiked, setRating, openLog } =
   useLibrary();
   const watched = isWatched(film.id);
@@ -80,9 +82,24 @@ export function FilmActionPanel({ film }: FilmActionPanelProps) {
         
       </div>
 
-      <Button onClick={() => openLog({ filmId: film.id })} className="mt-5 w-full">
-        <PenLineIcon size={16} /> Review or log
-      </Button>
+      <div className="mt-5 space-y-2.5">
+        <Button onClick={() => openLog({ filmId: film.id })} className="w-full">
+          <PenLineIcon size={16} /> Review or log
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => setAddToListOpen(true)}
+          className="w-full gap-2"
+        >
+          <LayersIcon size={16} /> Add to list
+        </Button>
+      </div>
+
+      <AddToListDialog
+        open={addToListOpen}
+        onClose={() => setAddToListOpen(false)}
+        film={film}
+      />
     </div>);
 
 }

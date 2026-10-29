@@ -13,6 +13,8 @@ import { Discover } from './pages/Discover';
 import { FilmDetail } from './pages/FilmDetail';
 import { Home } from './pages/Home';
 import { Landing } from './pages/Landing';
+import { Lists } from './pages/Lists';
+import { ListDetail } from './pages/ListDetail';
 import { Login } from './pages/Login';
 import { Profile } from './pages/Profile';
 import { Register } from './pages/Register';
@@ -38,6 +40,8 @@ export function App() {
                   <Route path="discover" element={<Discover />} />
                   <Route path="diary" element={<Diary />} />
                   <Route path="chats" element={<Chats />} />
+                  <Route path="lists" element={<Lists />} />
+                  <Route path="lists/:id" element={<ListDetail />} />
                   <Route path="profile" element={<Profile />} />
                   <Route path="profile/:id" element={<Profile />} />
                   <Route path="film/:id" element={<FilmDetail />} />
